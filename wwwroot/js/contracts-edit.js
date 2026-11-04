@@ -195,6 +195,9 @@ async function openContractEditModal(c, mode = 'edit') {
     _ceCompanyProfileId = c.companyProfileId ?? (typeof currentBranchId !== 'undefined' ? currentBranchId : null);
     document.getElementById('ceContractType').value    = isBefristet ? 'befristet' : 'unbefristet';
     document.getElementById('ceEndDate').value         = c.contractEndDate ? c.contractEndDate.slice(0,10) : '';
+    document.getElementById('ceEndeArt').value = c.endeArt || '';
+    document.getElementById('ceEndeFit').value = c.endeVollArbeitsfaehig === true ? 'ja' : c.endeVollArbeitsfaehig === false ? 'nein' : '';
+    ceEndeFelder();
     document.getElementById('ceJobTitle').value        = c.jobTitle ?? '';
     cePruefeBeruf();
     document.getElementById('ceProbationMonths').value = c.probationPeriodMonths ?? '';
@@ -431,6 +434,13 @@ async function ceArbeitszeitLaden(employeeId, startIso) {
         }
     } catch { /* Liste bleibt leer */ }
     if (sel._lqRefresh) sel._lqRefresh();
+}
+
+// Art des Endes und Arbeitsfähigkeit nur mit Vertragsende. Beim Todesfall entfällt die Frage (RL 8.6.8.2).
+function ceEndeFelder() {
+    const hatEnde = !!document.getElementById('ceEndDate').value;
+    document.getElementById('ceEndeArtWrap').style.display = hatEnde ? '' : 'none';
+    document.getElementById('ceEndeFitWrap').style.display = hatEnde && document.getElementById('ceEndeArt').value !== 'deceased' ? '' : 'none';
 }
 
 function onCeContractTypeChange() {
@@ -853,6 +863,9 @@ async function saveContractEdit() {
     const payload = {
         contractStartDate:       startDate,
         contractEndDate:         isBefristet && endDate ? endDate : null,
+        endeGesetzt:             true,
+        endeArt:                 (isBefristet && endDate && document.getElementById('ceEndeArt').value) || null,
+        endeVollArbeitsfaehig:   isBefristet && endDate ? (({ ja: true, nein: false })[document.getElementById('ceEndeFit').value] ?? null) : null,
         contractType:            isBefristet ? 'befristet' : 'unbefristet',
         employmentModel,
         swissdecVertragsart:     art.art || null,

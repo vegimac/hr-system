@@ -33,9 +33,7 @@ public class ElmEmaEreignisseTests
         ["TF40"] = new[]
         {
             new E.Manuell(Erster("2025-03"), E.Withdrawal, "interruptionOfEmployment"),
-            new E.Manuell(Erster("2025-10"), E.Entry, "interruptionOfEmployment"),
             new E.Manuell(Erster("2025-10"), E.Withdrawal, "interruptionOfEmployment"),
-            new E.Manuell(Erster("2025-12"), E.Entry, "interruptionOfEmployment"),
         },
     };
 
@@ -196,6 +194,53 @@ public class ElmEmaEreignisseTests
         Assert.Empty(soll.Except(ist));
         Assert.Empty(ist.Except(soll));
     }
+
+    private static HrSystem.Models.Employment V(string von, string? bis, string? art = null) => new()
+    {
+        ContractStartDate = DateTime.Parse(von, CultureInfo.InvariantCulture),
+        ContractEndDate = bis == null ? null : DateTime.Parse(bis, CultureInfo.InvariantCulture),
+        EndeArt = art,
+    };
+
+    [Fact]
+    public void Unterbruch_am_Vertrag_ergibt_den_Austrittsgrund()
+    {
+        var u = ElmEmaBuilder.UnterbruecheAusVertraegen(new[]
+        {
+            V("2025-01-01", "2025-03-31", "interruptionOfEmployment"),
+            V("2025-10-01", "2025-10-31"),
+        }).ToList();
+        var z = Assert.Single(u);
+        Assert.Equal((new DateOnly(2025, 3, 1), E.Withdrawal, "interruptionOfEmployment"), (z.Monat, z.Art, z.Grund));
+    }
+
+    [Fact]
+    public void Vertragswechsel_ohne_Luecke_ist_kein_Unterbruch()
+    {
+        // Andere Funktion, nahtloser Folgevertrag: Eine vergessene Angabe darf keine Meldung auslösen.
+        Assert.Empty(ElmEmaBuilder.UnterbruecheAusVertraegen(new[]
+        {
+            V("2025-01-01", "2025-03-31", "interruptionOfEmployment"),
+            V("2025-04-01", null),
+        }));
+    }
+
+    [Fact]
+    public void Todesfall_am_Vertrag()
+    {
+        var e = new HrSystem.Models.Employee();
+        Assert.Equal(new DateOnly(2025, 10, 30), ElmEmaBuilder.Todestag(e, new[] { V("2025-02-01", "2025-10-30", HrSystem.Models.Employment.EndeTodesfall) }));
+        Assert.Null(ElmEmaBuilder.Todestag(e, new[] { V("2025-02-01", "2025-10-30") }));
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("", true)]
+    [InlineData("interruptionOfEmploymentOnlyRisk", true)]
+    [InlineData("deceased", true)]
+    [InlineData("retirement", false)]
+    public void Art_des_Endes_wird_geprueft(string? art, bool gueltig)
+        => Assert.Equal(gueltig, HrSystem.Models.Employment.EndeArtGueltig(art));
 
     [Fact]
     public void Monatslohn_aus_dem_Vertrag_nicht_anteilig()

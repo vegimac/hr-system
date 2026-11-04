@@ -450,6 +450,8 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SwissdecVertragsart).HasColumnName("swissdec_vertragsart").HasMaxLength(60);
             entity.Property(e => e.JahreslohnOhneZeitbindung).HasColumnName("jahreslohn_ohne_zeitbindung").HasColumnType("numeric(12,2)");
             entity.Property(e => e.VierzehnterMonatslohn).HasColumnName("vierzehnter_monatslohn");
+            entity.Property(e => e.EndeArt).HasColumnName("ende_art").HasMaxLength(40);
+            entity.Property(e => e.EndeVollArbeitsfaehig).HasColumnName("ende_voll_arbeitsfaehig");
             entity.Property(e => e.Regelmaessig).HasColumnName("regelmaessig");
             entity.Property(e => e.JobTitle).HasColumnName("job_title");
             entity.Property(e => e.JobGroupId).HasColumnName("job_group_id");

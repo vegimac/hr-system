@@ -3423,6 +3423,21 @@
                                         <option value="DIVERS">Divers</option>
                                     </select>
                                 </label>
+                                <label style="font-size:12.5px;color:#334155">Art des Endes
+                                    <select id="kuEndeArt" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white">
+                                        <option value="">Austritt</option>
+                                        <option value="interruptionOfEmployment">Arbeitsunterbruch</option>
+                                        <option value="interruptionOfEmploymentOnlyRisk">Arbeitsunterbruch, nur Risiko</option>
+                                        <option value="interruptionOfEmploymentNotInsured">Arbeitsunterbruch, nicht versichert</option>
+                                    </select>
+                                </label>
+                                <label style="font-size:12.5px;color:#334155">100 % arbeitsfähig?
+                                    <select id="kuEndeFit" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px;background:white">
+                                        <option value="">Noch offen</option>
+                                        <option value="ja">Ja</option>
+                                        <option value="nein">Nein (auch bei laufender Abklärung)</option>
+                                    </select>
+                                </label>
                             </div>
                             <label style="display:block;margin-top:10px;font-size:12.5px;color:#334155">Grund-Text (optional — erscheint im Brief)
                                 <input type="text" id="kuGrundText" placeholder="z.B. betriebliche Gründe" style="width:100%;margin-top:4px;padding:7px 9px;border:1px solid #cbd5e1;border-radius:6px;font-size:13px">
@@ -11396,7 +11411,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/verfuegbarkeit.js?v=20260722a"></script>
 <script>try { if (typeof webauthnSupported === 'function' && webauthnSupported()) { var _fb = document.getElementById('faceIdLoginBtn'); if (_fb) _fb.style.display = 'block'; } } catch (e) {}</script>
 <script type="text/plain" data-modul="js/austritt.js?v=20261011a"></script>
-<script type="text/plain" data-modul="js/contracts-edit.js?v=20261102a"></script>
+<script type="text/plain" data-modul="js/contracts-edit.js?v=20261105a"></script>
 <script type="text/plain" data-modul="js/payroll.js?v=20261104a"></script>
 <script type="text/plain" data-modul="js/elm-meldungen.js?v=20261030c"></script>
 <script type="text/plain" data-modul="js/fibu.js?v=20260805a"></script>
@@ -13107,7 +13122,25 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
                     </div>
                     <div class="ce-field" id="ceEndDateWrap">
                         <label class="ce-lbl" data-i18n="vt.modal.field.endDate">Vertragsende</label>
-                        <input type="date" id="ceEndDate" class="ce-inp">
+                        <input type="date" id="ceEndDate" class="ce-inp" onchange="ceEndeFelder()">
+                    </div>
+                    <div class="ce-field" id="ceEndeArtWrap" style="display:none">
+                        <label class="ce-lbl">Art des Endes</label>
+                        <select id="ceEndeArt" class="ce-inp" onchange="ceEndeFelder()">
+                            <option value="">Austritt</option>
+                                        <option value="interruptionOfEmployment">Arbeitsunterbruch</option>
+                                        <option value="interruptionOfEmploymentOnlyRisk">Arbeitsunterbruch, nur Risiko</option>
+                                        <option value="interruptionOfEmploymentNotInsured">Arbeitsunterbruch, nicht versichert</option>
+                            <option value="deceased">Todesfall</option>
+                        </select>
+                    </div>
+                    <div class="ce-field" id="ceEndeFitWrap" style="display:none">
+                        <label class="ce-lbl">100 % arbeitsfähig?</label>
+                        <select id="ceEndeFit" class="ce-inp">
+                            <option value="">Noch offen</option>
+                                        <option value="ja">Ja</option>
+                                        <option value="nein">Nein (auch bei laufender Abklärung)</option>
+                        </select>
                     </div>
                     <div class="ce-field ce-span-2">
                         <label class="ce-lbl" data-i18n="vt.modal.field.jobTitle">Im Unternehmen ausgeübter Beruf</label>
@@ -13319,7 +13352,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/hr-saldi-lohnlauf.js?v=20260909a"></script>
 <script type="text/plain" data-modul="js/hr-qst-anmeldung.js?v=20261011a"></script>
 <script type="text/plain" data-modul="js/hr-lohnausweis.js?v=20261031w"></script>
-<script type="text/plain" data-modul="js/kuendigung.js?v=20261023b"></script>
+<script type="text/plain" data-modul="js/kuendigung.js?v=20261105a"></script>
 <script type="text/plain" data-modul="js/aufforderung-arbeit.js?v=20260812b"></script>
 <script type="text/plain" data-modul="js/aerzte.js?v=20261026a"></script>
 <script type="text/plain" data-modul="js/lohndaten-empfaenger.js?v=20261026a"></script>

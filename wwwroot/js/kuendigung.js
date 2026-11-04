@@ -1058,7 +1058,7 @@ async function kuEintragen() {
     const durchLbl = body.kuendigungDurch === 'AN' ? 'durch Mitarbeiter' : body.kuendigungDurch === 'GG' ? 'gegenseitig' : 'durch uns';
     const agEl = document.getElementById('kuAustrittsgrund');
     const agLbl = agEl?.selectedOptions?.[0]?.text || '—';
-    if (!(await liquidConfirm(`Gekündigt am: ${am}\nKündigung per: ${per}\nKündigung durch: ${durchLbl}\nAustrittsgrund: ${agLbl}`,
+    if (!(await liquidConfirm(`Gekündigt am: ${am}\nKündigung per: ${per}\nKündigung durch: ${durchLbl}\nAustrittsgrund: ${agLbl}\nArt des Endes: ${document.getElementById('kuEndeArt')?.selectedOptions?.[0]?.text || 'Austritt'}\n100 % arbeitsfähig: ${document.getElementById('kuEndeFit')?.selectedOptions?.[0]?.text || 'Noch offen'}`,
         { title: 'Kündigung beim Mitarbeiter eintragen?', yesLabel: 'Ja, eintragen', noLabel: 'Abbrechen' }))) return;
     try {
         const r = await fetch(`/api/kuendigung/${id}/eintragen`, {
@@ -1069,7 +1069,9 @@ async function kuEintragen() {
                 letzterArbeitstag: body.letzterArbeitstag,
                 grundType: body.grundType,
                 kuendigungDurch: body.kuendigungDurch,
-                austrittsgrund: body.austrittsgrund || null
+                austrittsgrund: body.austrittsgrund || null,
+                endeArt: document.getElementById('kuEndeArt')?.value || null,
+                endeVollArbeitsfaehig: ({ ja: true, nein: false })[document.getElementById('kuEndeFit')?.value] ?? null
             })
         });
         if (!r.ok) {

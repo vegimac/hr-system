@@ -190,7 +190,7 @@ public class EmploymentsController : ControllerBase
                 e.EducationLevelCode,
                 e.EmploymentPercentage,
                 e.WeeklyHours, e.GuaranteedHoursPerWeek, e.LessonRate, e.WeeklyLessons, e.ThirteenthSalary, e.FerienFeiertagImAnsatz,
-                e.VierzehnterMonatslohn, e.JahreslohnOhneZeitbindung, e.Regelmaessig,
+                e.VierzehnterMonatslohn, e.JahreslohnOhneZeitbindung, e.Regelmaessig, e.EndeArt, e.EndeVollArbeitsfaehig,
                 e.TeilzeitUnter8hWoche,
                 e.MonthlySalaryFte, e.MonthlySalary, e.HourlyRate,
                 e.EasyAtWorkManualOverride,
@@ -222,6 +222,8 @@ public class EmploymentsController : ControllerBase
         var berufZahl = await BerufMitZahlAsync(employment.JobTitle);
         if (berufZahl != null) return berufZahl;
 
+        if (!Employment.EndeArtGueltig(employment.EndeArt))
+            return BadRequest(new { error = "ENDE_ART_INVALID", message = "Ungültige Art des Vertragsendes." });
         if (employment.ContractEndDate.HasValue
             && DateOnly.FromDateTime(employment.ContractEndDate.Value) < DateOnly.FromDateTime(employment.ContractStartDate))
             return Conflict(new { error = "VERTRAG_ZEITRAUM",
@@ -793,6 +795,13 @@ public class EmploymentsController : ControllerBase
         // easy@work-Import (der kennt das Merkmal nicht und würde es löschen).
         if (meldungsartUebernehmen) existing.FerienFeiertagImAnsatz = dto.FerienFeiertagImAnsatz;
         if (dto.VierzehnterGesetzt) existing.VierzehnterMonatslohn = dto.VierzehnterMonatslohn;
+        if (dto.EndeGesetzt)
+        {
+            if (!Employment.EndeArtGueltig(dto.EndeArt))
+                return BadRequest(new { error = "ENDE_ART_INVALID", message = "Ungültige Art des Vertragsendes." });
+            existing.EndeArt = string.IsNullOrWhiteSpace(dto.EndeArt) ? null : dto.EndeArt;
+            existing.EndeVollArbeitsfaehig = dto.EndeVollArbeitsfaehig;
+        }
         if (dto.JahreslohnGesetzt)
             existing.JahreslohnOhneZeitbindung = dto.JahreslohnOhneZeitbindung is > 0m
                 ? Math.Round(dto.JahreslohnOhneZeitbindung.Value, 2) : null;

@@ -62,6 +62,29 @@ public class Employment
     /// </summary>
     public bool VierzehnterMonatslohn { get; set; }
 
+    /// <summary>
+    /// Art des Vertragsendes für die EMA (RL 8.6.8, Walter 05.11.2026). Leer = Austritt, das ist der Normalfall.
+    /// Sonst ein Arbeitsunterbruch oder ein Todesfall. Gilt nur, wenn kein nahtloser Folgevertrag kommt.
+    /// </summary>
+    public string? EndeArt { get; set; }
+
+    /// <summary>Antwort auf «100 % arbeitsfähig?» zum Vertragsende (RL 8.6.8.2). Leer = noch nicht beantwortet.</summary>
+    public bool? EndeVollArbeitsfaehig { get; set; }
+
+    /// <summary>Nur die Vertrags- und die Kündigungsmaske setzen das Vertragsende. Der Import schickt die Felder nicht.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public bool EndeGesetzt { get; set; }
+
+    public const string EndeTodesfall = "deceased";
+
+    public static readonly string[] EndeArten =
+    {
+        "interruptionOfEmployment", "interruptionOfEmploymentOnlyRisk", "interruptionOfEmploymentNotInsured", EndeTodesfall,
+    };
+
+    /// <summary>Leer bleibt leer, Unbekanntes gibt false.</summary>
+    public static bool EndeArtGueltig(string? art) => string.IsNullOrWhiteSpace(art) || EndeArten.Contains(art);
+
     /// <summary>Nur die Vertragsmaske setzt den 14. Monatslohn. Der Import schickt das Feld nicht.</summary>
     [System.ComponentModel.DataAnnotations.Schema.NotMapped]
     public bool VierzehnterGesetzt { get; set; }

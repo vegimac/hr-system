@@ -75,6 +75,7 @@ public static class ElmEmaEreignisse
         bool aktiv = false, ahvGemeldet = false, bvg = false;
         decimal? letzteBasis = null, manuAlt = null, voraussichtlichAlt = null;
         string? code = null;
+        bool nachUnterbruch = false;
         DateOnly rueckschauAb = default;
         char vertragsart = '?';
         Monatsstand? vor = null;
@@ -117,7 +118,9 @@ public static class ElmEmaEreignisse
                 code = s.BvgCode;
                 voraussichtlichAlt = ElmBvgBasis.Voraussichtlich(s.Vertrag, s.Lohnarten, steuerung);
                 letzteBasis = s.ManuelleBasis ?? ElmBvgBasis.Runde5Rappen(voraussichtlichAlt.Value);
-                Add(Bvg, Entry, ab, manuellEin?.Grund ?? "entryPensionPlan", code, letzteBasis);
+                // Der Eintritt nach einem gemeldeten Arbeitsunterbruch beendet diesen (TF40 Farine).
+                Add(Bvg, Entry, ab, manuellEin?.Grund ?? (nachUnterbruch ? "interruptionOfEmployment" : "entryPensionPlan"), code, letzteBasis);
+                nachUnterbruch = false;
             }
             // Der Januar stützt sich auf die voraussichtliche Jahresmeldung: freigegeben, sonst dieselbe Rechnung (TF37 Oberli).
             if (bvg && !bvgNeu && monat.Month == 1)
@@ -185,7 +188,9 @@ public static class ElmEmaEreignisse
                 aktiv = false; ahvGemeldet = false;
                 if (bvg)
                 {
-                    Add(Bvg, Withdrawal, aus, AustrittsGrund(p, monat, aus), code, letzteBasis);
+                    var grund = AustrittsGrund(p, monat, aus);
+                    nachUnterbruch = grund.StartsWith("interruptionOfEmployment", StringComparison.Ordinal);
+                    Add(Bvg, Withdrawal, aus, grund, code, letzteBasis);
                     bvg = false;
                 }
             }

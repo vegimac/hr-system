@@ -185,6 +185,10 @@ public class KuendigungController : ControllerBase
         public string?   KuendigungDurch { get; set; }
         /// <summary>Austrittsgrund-Code (AustrittsgrundCodes), optional.</summary>
         public string?   Austrittsgrund { get; set; }
+        /// <summary>Art des Vertragsendes, leer = Austritt (Employment.EndeArten).</summary>
+        public string?   EndeArt { get; set; }
+        /// <summary>«100 % arbeitsfähig?» zum Austritt (RL 8.6.8.2).</summary>
+        public bool?     EndeVollArbeitsfaehig { get; set; }
     }
 
     /// <summary>
@@ -231,6 +235,13 @@ public class KuendigungController : ControllerBase
         tracked.KuendigungDurch           = durch;
         if (austrittsgrund != null)
             tracked.Austrittsgrund = austrittsgrund;
+        if (!Employment.EndeArtGueltig(dto.EndeArt))
+            return BadRequest(new { error = "ENDE_ART_INVALID", message = "Ungültige Art des Vertragsendes." });
+        if (emp != null && await _db.Employments.FirstOrDefaultAsync(v => v.Id == emp.Id) is { } vertrag)
+        {
+            vertrag.EndeArt = string.IsNullOrWhiteSpace(dto.EndeArt) ? null : dto.EndeArt;
+            vertrag.EndeVollArbeitsfaehig = dto.EndeVollArbeitsfaehig;
+        }
         await _db.SaveChangesAsync();
 
         return Ok(new
@@ -514,6 +525,12 @@ public class KuendigungController : ControllerBase
         tracked.KuendigungAusgesprochenAm = null;
         tracked.KuendigungPer             = null;
         tracked.KuendigungDurch           = null;
+        // Das Vertragsende aus der Kündigung gilt nicht mehr. Ein Vertrag mit festem Ende behält seine Angaben.
+        foreach (var v in await _db.Employments.Where(v => v.EmployeeId == empId && v.ContractEndDate == null).ToListAsync())
+        {
+            v.EndeArt = null;
+            v.EndeVollArbeitsfaehig = null;
+        }
         await _db.SaveChangesAsync();
         return Ok(new { ok = true });
     }

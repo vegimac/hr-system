@@ -155,8 +155,7 @@ public class ElmEmaBuilder
             }
             stand[e.Id] = new E.Person(
                 DateOnly.FromDateTime(e.DateOfBirth.Value), e.Gender,
-                e.ExitDate is DateTime tod && string.Equals(e.Austrittsgrund, "TODESFALL", StringComparison.OrdinalIgnoreCase)
-                    ? DateOnly.FromDateTime(tod) : null,
+                Todestag(e, eigene),
                 codes.Any(c => c.EmployeeId == e.Id && c.IstAhvSonderfall),
                 monate,
                 zivil.Where(z => z.EmployeeId == e.Id && z.GueltigAb != null)
@@ -164,7 +163,8 @@ public class ElmEmaBuilder
                 wohn.Where(w => w.EmployeeId == e.Id && w.GueltigAb != null)
                     .Select(w => (w.GueltigAb!.Value, w.ErfahrenAm ?? w.GueltigAb!.Value)).ToList(),
                 manuell.Where(x => x.EmployeeId == e.Id && x.Art != ElmEmaManuell.ArtFit)
-                    .Select(x => new E.Manuell(x.Monat, x.Art, x.Grund, x.ValidAsOf)).ToList(),
+                    .Select(x => new E.Manuell(x.Monat, x.Art, x.Grund, x.ValidAsOf))
+                    .Concat(UnterbruecheAusVertraegen(eigene)).ToList(),
                 jahresmeldungen.SelectMany(j => j.Zeilen.Where(z => z.EmployeeId == e.Id)
                         .Select(z => (Tag: new DateOnly(j.Jahr, 1, 1), z.Betrag)))
                     .ToDictionary(x => x.Tag, x => x.Betrag));
@@ -247,14 +247,19 @@ public class ElmEmaBuilder
             {
                 if (x.Grund == "deceased") return false;
                 var a = geladen.Manuell.FirstOrDefault(m => m.EmployeeId == e.Id && m.Art == ElmEmaManuell.ArtFit && m.ValidAsOf == x.ValidAsOf);
+                return Antwort(x, a) == true;
+            }
+            bool? Antwort(E.Ereignis x, ElmEmaManuell? a)
+            {
                 if (a != null) return a.Grund == "ja";
-                return x.Art == E.Entry && BvgVollArbeitsfaehig(e.Id, x.ValidAsOf) == true;
+                if (x.Art == E.Entry) return BvgVollArbeitsfaehig(e.Id, x.ValidAsOf);
+                var tag = x.ValidAsOf.ToDateTime(TimeOnly.MinValue);
+                return eigene.FirstOrDefault(v => v.ContractEndDate?.Date == tag)?.EndeVollArbeitsfaehig;
             }
             bool FrageOffen(E.Ereignis x)
             {
                 if (x.Domaene != E.Bvg || x.Art == E.Mutation || x.Grund == "deceased") return false;
-                if (geladen.Manuell.Any(m => m.EmployeeId == e.Id && m.Art == ElmEmaManuell.ArtFit && m.ValidAsOf == x.ValidAsOf)) return false;
-                if (x.Art == E.Entry && BvgVollArbeitsfaehig(e.Id, x.ValidAsOf) != null) return false;
+                if (Antwort(x, geladen.Manuell.FirstOrDefault(m => m.EmployeeId == e.Id && m.Art == ElmEmaManuell.ArtFit && m.ValidAsOf == x.ValidAsOf)) != null) return false;
                 ohneFrage.Add($"{e.FirstName} {e.LastName}: {(x.Art == E.Entry ? "Eintritt" : "Austritt")} {x.ValidAsOf:dd.MM.yyyy}");
                 return true;
             }
@@ -431,6 +436,29 @@ public class ElmEmaBuilder
         var xml = doc.Declaration + Environment.NewLine + doc.ToString();
         return new Ergebnis(xml, zeilen, warn, _validator.Validate(xml));
     }
+
+    /// <summary>Am Vertrag hinterlegter Arbeitsunterbruch. Mit nahtlosem Folgevertrag endet nichts, die Angabe zählt dann nicht.</summary>
+    public static IEnumerable<E.Manuell> UnterbruecheAusVertraegen(IReadOnlyList<Employment> vertraege)
+    {
+        foreach (var v in vertraege)
+        {
+            if (v.ContractEndDate is not DateTime ende || string.IsNullOrWhiteSpace(v.EndeArt) || v.EndeArt == Employment.EndeTodesfall) continue;
+            if (HatFolgevertrag(vertraege, ende)) continue;
+            yield return new E.Manuell(new DateOnly(ende.Year, ende.Month, 1), E.Withdrawal, v.EndeArt);
+        }
+    }
+
+    /// <summary>Todesfall am Vertrag. Der alte Austrittsgrund TODESFALL gilt weiter.</summary>
+    public static DateOnly? Todestag(Employee e, IReadOnlyList<Employment> vertraege)
+    {
+        var v = vertraege.LastOrDefault(x => x.EndeArt == Employment.EndeTodesfall && x.ContractEndDate != null && !HatFolgevertrag(vertraege, x.ContractEndDate.Value));
+        if (v != null) return DateOnly.FromDateTime(v.ContractEndDate!.Value);
+        return e.ExitDate is DateTime tod && string.Equals(e.Austrittsgrund, "TODESFALL", StringComparison.OrdinalIgnoreCase)
+            ? DateOnly.FromDateTime(tod) : null;
+    }
+
+    private static bool HatFolgevertrag(IReadOnlyList<Employment> vertraege, DateTime ende)
+        => vertraege.Any(n => n.ContractStartDate.Date == ende.Date.AddDays(1));
 
     /// <summary>H, M oder N: Ein Wechsel beginnt die Rückschau der BVG-Basis neu (RL 8.6.6.2).</summary>
     public static char Vertragsart(Employment em)
