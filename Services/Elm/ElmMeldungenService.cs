@@ -77,7 +77,7 @@ public class ElmMeldungenService
             substitution = ElmMeldungAnzeige.DeclarationId(alt);
         }
         return await _dienst.DeclareAsync(ziel.Url, new ElmUebermittlungService.DeclareOptionen(
-            art, jahr, art == "monthly" ? monat : null,
+            art, jahr, art is "monthly" or "annual" ? monat : null,
             TestCase: testmeldung ?? ziel.IstTest, Substitution: substitution, Adressaten: adressaten,
             DoppeltSignieren: true, FreigabePortal: freigabePortal, CompanyProfileId: companyProfileId), ct);
     }

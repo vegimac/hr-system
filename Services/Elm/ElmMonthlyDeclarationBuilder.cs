@@ -70,6 +70,42 @@ public class ElmMonthlyDeclarationBuilder
         return abstand > 0 && abstand <= ArbeitsortRueckblickMonate;
     }
 
+    /// <summary>CompanyWorkingTime der Rechtseinheit; ohne erfasste Modelle ein Standardmodell aus den Wochenstunden.</summary>
+    public static List<XElement> ArbeitszeitModelle(List<Arbeitszeitmodell> modelle, List<EmployeeArbeitszeitmodell> zuordnungen,
+        IEnumerable<int> empIds, decimal standardWochenstunden, List<string> warn)
+    {
+        var arbeitszeit = new List<XElement>();
+        if (modelle.Count == 0)
+        {
+            arbeitszeit.Add(new XElement(C + "CompanyWorkingTime",
+                new XAttribute("companyWorkingTimeID", "#cwt1"),
+                new XElement(C + "WeeklyHours", Amt(standardWochenstunden))));
+            warn.Add("Keine Arbeitszeitmodelle erfasst — gemeldet wird ein Standardmodell aus den Wochenstunden der Filiale "
+                   + $"({Amt(standardWochenstunden)} h). Erfassung: Hauptsitz → Arbeitszeitmodelle.");
+            return arbeitszeit;
+        }
+        foreach (var m in modelle)
+        {
+            XElement inhalt;
+            if (m.Wochenstunden is > 0m && m.Wochenlektionen is > 0m)
+                inhalt = new XElement(C + "WeeklyHoursAndLessons",
+                    new XElement(C + "WeeklyHours", Amt(m.Wochenstunden!.Value)),
+                    new XElement(C + "WeeklyLessons", Amt(m.Wochenlektionen!.Value)));
+            else if (m.Wochenlektionen is > 0m)
+                inhalt = new XElement(C + "WeeklyLessons", Amt(m.Wochenlektionen!.Value));
+            else
+                inhalt = new XElement(C + "WeeklyHours", Amt(m.Wochenstunden!.Value));
+            arbeitszeit.Add(new XElement(C + "CompanyWorkingTime",
+                new XAttribute("companyWorkingTimeID", "#" + m.KennungOderId),
+                inhalt));
+        }
+        var ohneZuordnung = empIds.Count(id => !zuordnungen.Any(z => z.EmployeeId == id));
+        if (ohneZuordnung > 0)
+            warn.Add($"{ohneZuordnung} Personen ohne Arbeitszeitmodell — gemeldet wird «{modelle[0].Bezeichnung}» "
+                   + "als Standard der Rechtseinheit (MA → Arbeitszeitmodell).");
+        return arbeitszeit;
+    }
+
     public static RechtseinheitStamm NurArbeitsorteMitLohn(RechtseinheitStamm stamm, IReadOnlySet<int> filialenMitLohn)
         => stamm with { Filialen = stamm.Filialen.Where(b => filialenMitLohn.Contains(b.Id)).ToList() };
 
@@ -839,37 +875,7 @@ public class ElmMonthlyDeclarationBuilder
         // ── Arbeitszeitmodelle der Rechtseinheit ─────────────────────────────
         // Ohne erfasste Modelle gilt ein Standardmodell aus den Wochenstunden der
         // Filiale — damit verhaelt sich Schaub wie bisher (42 h).
-        var arbeitszeit = new List<XElement>();
-        if (modelle.Count == 0)
-        {
-            arbeitszeit.Add(new XElement(C + "CompanyWorkingTime",
-                new XAttribute("companyWorkingTimeID", "#cwt1"),
-                new XElement(C + "WeeklyHours", Amt(stamm.Haupt.NormalWeeklyHours ?? 42m))));
-            warn.Add("Keine Arbeitszeitmodelle erfasst — gemeldet wird ein Standardmodell aus den Wochenstunden der Filiale "
-                   + $"({Amt(stamm.Haupt.NormalWeeklyHours ?? 42m)} h). Erfassung: Hauptsitz → Arbeitszeitmodelle.");
-        }
-        else
-        {
-            foreach (var m in modelle)
-            {
-                XElement inhalt;
-                if (m.Wochenstunden is > 0m && m.Wochenlektionen is > 0m)
-                    inhalt = new XElement(C + "WeeklyHoursAndLessons",
-                        new XElement(C + "WeeklyHours", Amt(m.Wochenstunden!.Value)),
-                        new XElement(C + "WeeklyLessons", Amt(m.Wochenlektionen!.Value)));
-                else if (m.Wochenlektionen is > 0m)
-                    inhalt = new XElement(C + "WeeklyLessons", Amt(m.Wochenlektionen!.Value));
-                else
-                    inhalt = new XElement(C + "WeeklyHours", Amt(m.Wochenstunden!.Value));
-                arbeitszeit.Add(new XElement(C + "CompanyWorkingTime",
-                    new XAttribute("companyWorkingTimeID", "#" + m.KennungOderId),
-                    inhalt));
-            }
-            var ohneZuordnung = empIds.Count(id => !zuordnungen.Any(z => z.EmployeeId == id));
-            if (ohneZuordnung > 0)
-                warn.Add($"{ohneZuordnung} Personen ohne Arbeitszeitmodell — gemeldet wird «{modelle[0].Bezeichnung}» "
-                       + "als Standard der Rechtseinheit (MA → Arbeitszeitmodell).");
-        }
+        var arbeitszeit = ArbeitszeitModelle(modelle, zuordnungen, empIds, stamm.Haupt.NormalWeeklyHours ?? 42m, warn);
 
         // Kontaktperson der Rechtseinheit (Walter 27.09.2026): wer eine Rückfrage zur
         // Meldung bekommt. Bewusst am Hauptsitz gepflegt, nicht der angemeldete

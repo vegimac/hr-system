@@ -184,6 +184,44 @@ public class ElmAnnualDeclarationBuilder
 
         var yearStart = new DateTime(year, 1, 1);
         var yearEnd = new DateTime(year, letzterMonat, DateTime.DaysInMonth(year, letzterMonat));
+        var stichtagEnde = DateOnly.FromDateTime(yearEnd);
+
+        // Personenangaben am Ende der Meldeperiode, wie in der Monatsmeldung (Quality Tool 2024-12: TF07 Burri).
+        var modelle = stamm.Hauptsitz == null
+            ? new List<Arbeitszeitmodell>()
+            : await _db.Arbeitszeitmodelle.AsNoTracking()
+                .Where(m => m.HauptsitzId == stamm.Hauptsitz.Id && m.IsActive)
+                .OrderBy(m => m.Id).ToListAsync(ct);
+        var zuordnungen = modelle.Count == 0
+            ? new List<EmployeeArbeitszeitmodell>()
+            : await _db.EmployeeArbeitszeitmodelle.AsNoTracking()
+                .Where(z => empIds.Contains(z.EmployeeId)).ToListAsync(ct);
+        var bewilligungen = await _db.EmployeePermitHistories.AsNoTracking()
+            .Where(h => empIds.Contains(h.EmployeeId)).ToListAsync(ct);
+        var permitTypen = await _db.PermitTypes.AsNoTracking().ToDictionaryAsync(p => p.Id, ct);
+        var zivilHist = await _db.EmployeeZivilstandHistories.AsNoTracking()
+            .Where(h => empIds.Contains(h.EmployeeId)).ToListAsync(ct);
+        var wohnHist = await _db.EmployeeWohnortHistories.AsNoTracking()
+            .Where(h => empIds.Contains(h.EmployeeId)).ToListAsync(ct);
+        var plzListe = emps.Select(e2 => (e2.ZipCode ?? "").Trim())
+            .Concat(wohnHist.Select(h => (h.Plz ?? "").Trim()))
+            .Where(z => z.Length == 4).Distinct().ToList();
+        var orte = await _db.SwissLocations.AsNoTracking()
+            .Where(l => plzListe.Contains(l.Plz4))
+            .Select(l => new { l.Plz4, l.BfsNr, l.Ortschaftsname, l.Gemeindename })
+            .ToListAsync(ct);
+        int? WohnGemeinde(string? plzRoh, string? ortRoh)
+        {
+            var plz = (plzRoh ?? "").Trim();
+            if (plz.Length != 4) return null;
+            var ort = (ortRoh ?? "").Trim().ToLowerInvariant();
+            var kand = orte.Where(o => o.Plz4 == plz).ToList();
+            var best = kand.FirstOrDefault(o => (o.Ortschaftsname ?? "").ToLowerInvariant().StartsWith(ort)
+                                             || (o.Gemeindename ?? "").ToLowerInvariant() == ort)?.BfsNr;
+            if (best is > 0) return best;
+            var nrs = kand.Select(o => o.BfsNr).Distinct().ToList();
+            return nrs.Count == 1 ? nrs[0] : null;
+        }
         var versicherungAlle = await _db.EmployeeVersicherungCodes.AsNoTracking()
             .Where(v => empIds.Contains(v.EmployeeId))
             .ToListAsync(ct);
@@ -284,13 +322,35 @@ public class ElmAnnualDeclarationBuilder
                 ?? employments.Where(m => m.EmployeeId == x.EmployeeId)
                        .OrderByDescending(m => m.ContractStartDate).FirstOrDefault();
 
-            var particulars = Particulars(e, warn);
+            var eigeneWohnorte = wohnHist.Where(h => h.EmployeeId == e.Id).ToList();
+            var wohnAm = WohnortHistorieService.Am(eigeneWohnorte, stichtagEnde,
+                e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
+            var adresseAm = new PersonAdresseAm(wohnAm.Strasse, wohnAm.Plz, wohnAm.Ort, wohnAm.Land, wohnAm.KantonCode);
+            var umzug = WohnortHistorieService.UmzugImMonat(eigeneWohnorte, stichtagEnde.AddYears(-1).AddDays(1), stichtagEnde);
+            PersonAdresseAm? adresseVorher = umzug is { } u
+                ? new PersonAdresseAm(u.Alt.Strasse, u.Alt.Plz, u.Alt.Ort, u.Alt.Land, u.Alt.KantonCode)
+                : null;
+            var (zivAm, zivSeitAm, _) = ZivilstandHistorieService.Am(
+                zivilHist.Where(h => h.EmployeeId == e.Id), stichtagEnde, e.MaritalStatus, e.MaritalStatusSince);
+            var permitId = ElmMonthlyDeclarationBuilder.BewilligungAmStichtag(bewilligungen.Where(h => h.EmployeeId == e.Id), stichtagEnde);
+            var permitAmEnde = permitId != null && permitTypen.TryGetValue(permitId.Value, out var pt) ? pt : null;
+            var particulars = Particulars(e, warn, WohnGemeinde(adresseAm.Zip, adresseAm.City), permitAmEnde,
+                zivAm, zivSeitAm, adresseAm, adresseVorher, umzug?.Wegzug,
+                adresseVorher == null ? null : WohnGemeinde(adresseVorher.Zip, adresseVorher.City));
 
-            var workingTime = WorkingTime(em, main.NormalWeeklyHours ?? 42m);
+            var zuordnung = zuordnungen
+                .Where(z => z.EmployeeId == e.Id && z.GueltigAb <= stichtagEnde)
+                .OrderByDescending(z => z.GueltigAb).ThenByDescending(z => z.Id).FirstOrDefault();
+            var modell = (zuordnung != null ? modelle.FirstOrDefault(m => m.Id == zuordnung.ArbeitszeitmodellId) : null)
+                         ?? modelle.FirstOrDefault();
+            var workingTime = WorkingTime(em,
+                modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : main.NormalWeeklyHours ?? 42m,
+                zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen, modell?.Wochenlektionen);
 
             var entry = e.EntryDate ?? em?.ContractStartDate ?? yearStart;
             var work = new XElement(C + "Work",
                 new XAttribute("workID", $"#w{e.Id}"),
+                new XAttribute("companyWorkingTimeIDRef", "#" + (modell?.KennungOderId ?? "cwt1")),
                 new XElement(C + "WorkingTime", workingTime),
                 new XElement(C + "EntryDate", entry.ToString("yyyy-MM-dd")));
             if (e.ExitDate != null && e.ExitDate.Value >= yearStart && e.ExitDate.Value <= yearEnd)
@@ -594,12 +654,8 @@ public class ElmAnnualDeclarationBuilder
 
         // ── Firmenbeschreibung: Rechtseinheit + alle Filialen als Workplaces ─
         var companyName = stamm.Firmenname;
-        var companyDescription = CompanyDescription(stamm, new[]
-        {
-            new XElement(C + "CompanyWorkingTime",
-                new XAttribute("companyWorkingTimeID", "#cwt1"),
-                new XElement(C + "WeeklyHours", Amt(main.NormalWeeklyHours ?? 42m)))
-        });
+        var companyDescription = CompanyDescription(stamm,
+            ElmMonthlyDeclarationBuilder.ArbeitszeitModelle(modelle, zuordnungen, empIds, main.NormalWeeklyHours ?? 42m, warn));
 
         var jobAddressees = new List<XElement>
         {
