@@ -1339,14 +1339,14 @@ public class ElmMonthlyDeclarationBuilder
             // Wiedereintritt mit neuer QST-Version im selben Kanton (Quality Tool Dez 2025: TF40 Farine
             // A1N → A2N ab 01.12.): zum Entry auch die Mutation. Beim ersten Eintritt gibt es keinen Vorgänger.
             if (version != null && vorher != null && version.ValidFrom == stichtag && kantonVorher == kanton)
-                mutationen.AddRange(MutationsGruende(vorher.QstCode, version.QstCode).Select(g => Teil("Mutation", monatsAnfangTag, g)!));
+                mutationen.AddRange(MutationsGruende(vorher.QstCode, code).Select(g => Teil("Mutation", monatsAnfangTag, g)!));
         }
         else
         {
             // Neue QST-Version ab dem Monatsersten im selben Kanton (Quality Tool Juni 2025: TF23 Koller,
             // TF35 Roos, TF36 Maldini Heirat → B0N/B0Y ab 01.06.): Mutation(en) mit dem Grund aus dem Code.
             if (version != null && vorher != null && version.ValidFrom == stichtag && kantonVorher == kanton)
-                mutationen.AddRange(MutationsGruende(vorher.QstCode, version.QstCode).Select(g => Teil("Mutation", monatsAnfangTag, g)!));
+                mutationen.AddRange(MutationsGruende(vorher.QstCode, code).Select(g => Teil("Mutation", monatsAnfangTag, g)!));
             // Wohnsitzwechsel ohne Kantonswechsel der QST (Quality Tool Mai 2025: TF25 Lehmann Italien →
             // Malters, TF30 Müller Deutschland → Bern): Mutation «residence» ab Monatsersten.
             if (mutationen.Count == 0 && wohnsitzWechsel)

@@ -839,7 +839,7 @@ public partial class SwissdecTestmandantController
                         }
                         if (kt != null) { q.Steuerkanton = kt; q.SteuerkantonName = null; }
                         if (Hat("PersonTASMunicipalityID")) q.QstGemeindeBfsNr = int.TryParse(NummerOhneKomma(V("PersonTASMunicipalityID")), out var g) ? g : null;
-                        if (Hat("PersonGrantTASCode")) { q.SpezielBewilligt = V("PersonGrantTASCode") != null; if (V("PersonGrantTASCode") != null) q.QstCode = V("PersonGrantTASCode"); }
+                        if (Hat("PersonGrantTASCode")) { q.SpezielBewilligt = V("PersonGrantTASCode") != null; }   // Kreuzchen «x», kein Tarifcode (TF40 Farine)
                         if (Hat("PersonCrossborderTaxID")) q.GrenzgaengerSteuerId = V("PersonCrossborderTaxID");
                         if (Hat("PersonCrossborderPlaceOfBirth")) q.GrenzgaengerGeburtsort = V("PersonCrossborderPlaceOfBirth");
                         if (Hat("PersonCrossborderValidAsOf")) q.GrenzgaengerAb = Datum(V("PersonCrossborderValidAsOf"));
