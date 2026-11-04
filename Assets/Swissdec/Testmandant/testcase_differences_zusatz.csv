@@ -1,0 +1,16 @@
+testcase,sscTag,label,month,oldValue,newValue
+TF29 Forster Moreno,PersonStreet,Strasse,2026-02-01,Via Dogana 4,Laupenstrasse 5
+TF29 Forster Moreno,PersonZIPCode,Postleitzahl,2026-02-01,20123,3008
+TF29 Forster Moreno,PersonCity,Ort,2026-02-01,Milano,Bern
+TF29 Forster Moreno,PersonCountry,Land,2026-02-01,ITALY,SWITZERLAND
+TF29 Forster Moreno,PersonResidenceCanton,Wohnkanton,2026-02-01,EX,BE
+TF29 Forster Moreno,PersonMunicipalityID,Gemeinde-Nr.,2026-02-01,,351
+TF29 Forster Moreno,PersonDepartureDate,Wegzugsdatum,2026-02-01,,28.01.2026
+TF29 Forster Moreno,PersonResidenceCategory,Aufenthaltsbewilligung,2026-02-01,crossBorder-G,annual-B
+TF29 Forster Moreno,PersonTASCanton,QST-Kanton,2026-02-01,TI,BE
+TF29 Forster Moreno,PersonTASMunicipalityID,QST-Gemeinde,2026-02-01,5002,351
+TF29 Forster Moreno,PersonTASCalculationModel,Berechnungmodell QST,2026-02-01,Y,M
+TF29 Forster Moreno,PersonTASCode,QST-Code,2026-02-01,A0N,A0Y
+TF29 Forster Moreno,PersonTASCodeValidAsOf,QST-Code Gültig ab,2026-02-01,01.01.2025,01.02.2026
+TF29 Forster Moreno,PersonTASKindOfResidence,Aufenthaltskategorie,2026-02-01,Daily,
+TF29 Forster Moreno,PersonTASTriggerOfChange,QST Auslöser der Veränderung,2026-02-01,,CompanyMutation

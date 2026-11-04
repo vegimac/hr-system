@@ -167,6 +167,10 @@ public partial class SwissdecTestmandantController
             return NotFound(new { error = "CSV_FEHLT", message = $"Datei fehlt: {pfad}" });
 
         var alle = LeseMutationen(pfad);
+        // Eigene Zusatzdatei (Walter 04.11.2026): Mutationen, die das Quality Tool erwartet, die aber in der
+        // Swissdec-Datei fehlen (TF29 Forster Feb 2026, nur in der Referenz). Die Swissdec-Datei bleibt unverändert.
+        var zusatz = Path.Combine(Path.GetDirectoryName(pfad)!, "testcase_differences_zusatz.csv");
+        if (System.IO.File.Exists(zusatz)) alle.AddRange(LeseMutationen(zusatz));
         DateOnly? nurMonat = null;
         if (!string.IsNullOrWhiteSpace(monat) && DateOnly.TryParseExact(monat.Trim() + "-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var mm)) nurMonat = mm;
         var nurSet = NurSet(nur);

@@ -30,7 +30,7 @@ Status: **offen** = noch nicht gefragt oder keine Antwort · **bestätigt** · *
 
 | 12 | **Nur Testdaten:** Farines Vertrag ab 01.12. hat Probezeit bis 28.02.2026, damit der 13. ML beim Austritt verfällt. | TF40 Farine Feb 2026: Referenz meldet Contractual13th 8.33, zahlt aber nichts aus. | Die Testdaten nennen keine Probezeit. Fachlich wäre der Anteil geschuldet. | Testinstanz, `ThirteenthVerfaelltInProbezeit` | offen |
 
-| 13 | **Testdaten:** Forsters Umzug nach Bern (Wegzug 28.01.2026, A0Y, QST-Kanton BE, annual-B) fehlt in allen Testdaten-Dateien. | Nur in der Referenz und im Quality Tool Feb 2026. | Wie die Mutation erfasst wird, ist unsere Sache. Offen ist, ob die Dateien korrigiert werden. | Testinstanz | offen |
+| 13 | **Testdaten:** Forsters Umzug nach Bern (Wegzug 28.01.2026, A0Y, QST-Kanton BE, annual-B) fehlt in allen Testdaten-Dateien. | Nur in der Referenz und im Quality Tool Feb 2026. | Aus der Referenz übernommen, Felder ohne Referenzwert von uns ergänzt. Offen ist, ob die Dateien korrigiert werden. | `Assets/Swissdec/Testmandant/testcase_differences_zusatz.csv` | offen |
 
 ## Durch die Richtlinien gedeckt (keine Frage)
 
