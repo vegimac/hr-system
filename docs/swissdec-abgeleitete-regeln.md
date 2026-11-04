@@ -32,6 +32,8 @@ Status: **offen** = noch nicht gefragt oder keine Antwort · **bestätigt** · *
 
 | 13 | **Testdaten:** Forsters Umzug nach Bern (Wegzug 28.01.2026, A0Y, QST-Kanton BE, annual-B) fehlt in allen Testdaten-Dateien. | Nur in der Referenz und im Quality Tool Feb 2026. | Aus der Referenz übernommen, Felder ohne Referenzwert von uns ergänzt. Offen ist, ob die Dateien korrigiert werden. | `Assets/Swissdec/Testmandant/testcase_differences_zusatz.csv` | offen |
 
+| 14 | Zahlung nach dem Austritt: Ein Umzug in einen anderen Kanton ergibt **keine** Entry-, Mutations- oder Abmeldezeile. | TF29 Forster Feb 2026. | Ein einziger Fall. | `ElmMonthlyDeclarationBuilder.NachAustritt` | offen |
+
 ## Durch die Richtlinien gedeckt (keine Frage)
 
 | Regel | Kapitel | Code |
@@ -85,6 +87,8 @@ Noch nicht gesendet. Empfänger von Walter zu bestimmen, sinnvoll nach Abschluss
 >     `Contractual13th` 8.33, zahlt für Januar und Februar aber nichts aus. Warum entfällt der anteilige 13. Monatslohn?
 > 12. **TF29 Forster Februar 2026:** Das Quality Tool erwartet einen Umzug nach Bern (Wegzug 28.01.2026, A0Y, QST-Kanton
 >     BE, annual-B). Diese Mutation fehlt in `testcase_differences_export.csv`. Können Sie die Datei prüfen?
+>     Erwartet wird dort weder `cantonChange` noch `residence` noch eine Abmeldezeile für TI. Gilt das allgemein für
+>     Zahlungen nach dem Austritt?
 >
 > Besten Dank und freundliche Grüsse
 >

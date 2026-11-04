@@ -1332,7 +1332,10 @@ public class ElmMonthlyDeclarationBuilder
         // «cantonChange» am Vortag. Nur wenn die Person schon vorher angestellt war.
         var vorher = QstVersionWahl.Waehle(versionen.Where(v => v.EmployeeId == e.Id).ToList(), stichtag.AddDays(-1));
         var kantonVorher = (vorher?.Steuerkanton ?? "").Trim().ToUpperInvariant();
-        bool kantonswechsel = entryEl == null && kantonVorher.Length == 2 && kantonVorher != kanton
+        // Zahlung nach dem Austritt: Die Person ist bei den Kantonen schon abgemeldet, ein Umzug danach ergibt weder
+        // Entry noch Mutation noch Abmeldezeile (Quality Tool Feb 2026: TF29 Forster, Austritt 31.12., Umzug 28.01.).
+        bool nachAustritt = NachAustritt(austrittDekl, eintritt, monatsAnfang);
+        bool kantonswechsel = !nachAustritt && entryEl == null && kantonVorher.Length == 2 && kantonVorher != kanton
                               && (eintritt == null || eintritt.Value < monatsAnfang);
         var monatsAnfangTag = stichtag.ToDateTime(TimeOnly.MinValue);
         bool schonAngestellt = eintritt == null || eintritt.Value < monatsAnfang;
@@ -1359,7 +1362,7 @@ public class ElmMonthlyDeclarationBuilder
             if (version != null && vorher != null && version.ValidFrom == stichtag && kantonVorher == kanton)
                 mutationen.AddRange(MutationsGruende(vorher.QstCode, code).Select(g => Teil("Mutation", monatsAnfangTag, g)!));
         }
-        else
+        else if (!nachAustritt)
         {
             // Neue QST-Version ab dem Monatsersten im selben Kanton (Quality Tool Juni 2025: TF23 Koller,
             // TF35 Roos, TF36 Maldini Heirat → B0N/B0Y ab 01.06.): Mutation(en) mit dem Grund aus dem Code.
@@ -1819,6 +1822,10 @@ public class ElmMonthlyDeclarationBuilder
     public static (decimal Basis, decimal Steuer) QstAustrittKorrekturWirkung(JsonElement k)
         => (PayrollCalculations.Round05(k.GetProperty("neuBasis").GetDecimal()) - PayrollCalculations.Round05(k.GetProperty("altBasis").GetDecimal()),
             PayrollCalculations.Round05(k.GetProperty("neuSteuer").GetDecimal()) - PayrollCalculations.Round05(k.GetProperty("altSteuer").GetDecimal()));
+
+    /// <summary>Ausgetreten vor dem Meldemonat und seither nicht wieder eingetreten?</summary>
+    public static bool NachAustritt(DateTime? austritt, DateTime? eintritt, DateTime monatsAnfang)
+        => austritt is DateTime a && a < monatsAnfang && !(eintritt is DateTime e && e > a);
 
     /// <summary>Beginnt der C-Ausweis in diesem Monat? Dann ist er die letzte QST-Abrechnung (RL 10.6.2).</summary>
     public static bool CAusweisImMonat(IEnumerable<EmployeePermitHistory> verlauf, IReadOnlyDictionary<int, PermitType> typen,

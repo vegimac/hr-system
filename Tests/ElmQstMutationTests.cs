@@ -170,3 +170,25 @@ public class ElmArbeitsortRueckblickTests
     public void Rueckblick(int j, int m, int mj, int mm, bool soll)
         => Assert.Equal(soll, ElmMonthlyDeclarationBuilder.ImArbeitsortRueckblick(j, m, mj, mm));
 }
+
+/// <summary>Quality Tool Feb 2026 TF29 Forster: Umzug nach dem Austritt ergibt keine Kantonswechsel-Meldung.</summary>
+public class ElmNachAustrittTests
+{
+    private static readonly DateTime Feb = new(2026, 2, 1);
+
+    [Fact]
+    public void Ausgetreten_vor_dem_Monat()
+        => Assert.True(ElmMonthlyDeclarationBuilder.NachAustritt(new DateTime(2025, 12, 31), new DateTime(2025, 1, 1), Feb));
+
+    [Fact]
+    public void Austritt_im_Monat_zaehlt_nicht()
+        => Assert.False(ElmMonthlyDeclarationBuilder.NachAustritt(new DateTime(2026, 2, 28), new DateTime(2025, 1, 1), Feb));
+
+    [Fact]
+    public void Wiedereintritt_zaehlt_nicht()
+        => Assert.False(ElmMonthlyDeclarationBuilder.NachAustritt(new DateTime(2025, 12, 31), new DateTime(2026, 1, 15), Feb));
+
+    [Fact]
+    public void Ohne_Austritt()
+        => Assert.False(ElmMonthlyDeclarationBuilder.NachAustritt(null, new DateTime(2025, 1, 1), Feb));
+}
