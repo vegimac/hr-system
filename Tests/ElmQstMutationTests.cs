@@ -115,6 +115,15 @@ public class ElmQstAustrittKorrekturTests
     public void Anspruch_mit_Austritt(string code, string? sd, bool soll)
         => Assert.Equal(soll, HrSystem.Services.NachzahlungQstZeit.AnspruchMitAustritt(code, sd));
 
+    [Theory]
+    [InlineData("B", 2025, 11, 30, true)]    // TF24 Utzinger B → C ab 01.11.: November noch QST
+    [InlineData("B", 2025, 12, 31, false)]   // ab Folgemonat befreit
+    [InlineData(null, 2025, 11, 30, false)]  // C schon beim Eintritt: sofort befreit
+    [InlineData("C", 2025, 11, 30, false)]   // erneuerte Karte
+    public void C_Wechsel_wirkt_ab_Folgemonat(string? vorgaenger, int j, int m, int t, bool nochPflichtig)
+        => Assert.Equal(nochPflichtig, HrSystem.Services.QstPflichtCheckService.CWechselNochNichtWirksam(
+            new DateOnly(2025, 11, 1), vorgaenger, new DateOnly(j, m, t)));
+
     [Fact]
     public void C_Ausweis_im_Monat()
     {

@@ -41,6 +41,14 @@ public class QstPflichtCheckService
     /// <summary>Niederlassungsbewilligung C — mit und ohne EU/EFTA-Zusatz.</summary>
     public static readonly string[] CAusweisCodes = { "C", "C_EU_EFTA" };
 
+    /// <summary>
+    /// Wechsel von einer anderen Bewilligung auf C im Monat des Stichtags: noch QST-pflichtig bis Monatsende.
+    /// Kein Vorgänger (C schon beim Eintritt) oder Vorgänger schon C (erneuerte Karte): sofort wirksam.
+    /// </summary>
+    public static bool CWechselNochNichtWirksam(DateOnly cAb, string? vorgaengerCode, DateOnly stichtag)
+        => cAb >= new DateOnly(stichtag.Year, stichtag.Month, 1)
+           && !string.IsNullOrWhiteSpace(vorgaengerCode) && !IstCAusweis(vorgaengerCode);
+
     public static bool IstCAusweis(string? permitCode)
         => permitCode != null && CAusweisCodes.Contains(permitCode.Trim().ToUpperInvariant());
 
@@ -149,20 +157,29 @@ public class QstPflichtCheckService
         // ValidFrom MUSS ≤ Stichtag sein — sonst befreit ein C ab November
         // den Januar-Lohn (TF24 Utzinger: B 1.1.2025, C erst 1.11.2025).
         // Fachlogik: ValidFrom ≤ Stichtag. 0a: Auslands-Wohnsitz → keine Befreiung.
-        // Wirkung erst ab dem Folgemonat (RL 10.6.2; Quality Tool Nov 2025 TF24 Utzinger: C ab 01.11.,
-        // November noch C0N 1'728.00, Austritt «settled-C» per 30.11.).
-        var ersterDesMonats = new DateOnly(stichtag.Year, stichtag.Month, 1);
         var cEintrag = istAusland ? null : await _db.EmployeePermitHistories
             .AsNoTracking()
             .Include(h => h.PermitType)
             .Where(h => h.EmployeeId == employeeId
                      && h.PermitType != null
                      && CAusweisCodes.Contains(h.PermitType.Code)
-                     && h.ValidFrom < ersterDesMonats
+                     && h.ValidFrom <= stichtag
                      && (h.ErfahrenAm ?? h.ValidFrom) <= stichtag)
             .OrderByDescending(h => h.ValidFrom)
             .ThenByDescending(h => h.Id)
             .FirstOrDefaultAsync();
+        // Wechsel auf C wirkt erst ab dem Folgemonat (RL 10.6.2; Quality Tool Nov 2025 TF24 Utzinger: B → C
+        // ab 01.11., November noch C0N 1'728.00, Austritt «settled-C» per 30.11.). Wer schon beim Eintritt
+        // C hat, wechselt nichts und ist sofort befreit.
+        if (cEintrag != null)
+        {
+            var vorgaenger = await _db.EmployeePermitHistories.AsNoTracking()
+                .Where(h => h.EmployeeId == employeeId && h.PermitType != null && h.ValidFrom < cEintrag.ValidFrom)
+                .OrderByDescending(h => h.ValidFrom).ThenByDescending(h => h.Id)
+                .Select(h => h.PermitType!.Code)
+                .FirstOrDefaultAsync();
+            if (CWechselNochNichtWirksam(cEintrag.ValidFrom, vorgaenger, stichtag)) cEintrag = null;
+        }
         if (cEintrag != null)
         {
             // Walter-Vorgabe 14.06.2026: Beleg-Doku jetzt am Permit-History-
