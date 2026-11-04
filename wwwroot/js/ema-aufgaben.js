@@ -189,7 +189,7 @@ async function emaManListe() {
 
 async function emaManSpeichern() {
     const id = Number(document.getElementById('emaManMa').value);
-    const monat = document.getElementById('emaManMonat').value;
+    const monat = document.getElementById('emaManMonat').value.slice(0, 7);
     const [art, grund] = document.getElementById('emaManGrund').value.split('|');
     const ab = document.getElementById('emaManAb').value || null;
     const el = document.getElementById('emaManListe');
