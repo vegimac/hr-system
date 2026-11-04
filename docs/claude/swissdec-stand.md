@@ -456,3 +456,25 @@ ganze Meldung XSD-gültig).
 **Jahresmeldung, Stand 04.11.2026 (Aebi 2024-11):** AHV-, ALV- und ALVZ-Lohn kommen aus den Abzugszeilen der Lohnzettel (`ElmAhvJahreslohn.AusLohnzetteln`), nicht mehr aus einer Monatsdeckelung. Offline-Abgleich aller 16 RefXML: 518 von 530 Personen-Monaten stimmen auf den Rappen. Eine `Work` je Anstellung mit Lohn in der Periode, Lohn nach dem Austritt zählt zur beendeten Anstellung, auch aus dem Vorjahr. Lohnausweis-Kennzeichen kommen aus den Lohnausweis-Angaben (`LohnausweisAngaben.Aufloesen`); bei Spesenreglement oder RZ 52 keine effektiven Spesen. Testdaten dazu: Schritt 4d (`SwissdecTestmandantController.Schritt4d.cs`). Offen: Rektifikat TF16 Aebi Jan 2025, ContinuedProvisionOfSalary TF10 Ganz ab Nov 2025 (Name der Empfängerin steht nicht in den Testdaten-CSV), Grenzgänger-Teil, kleine Rundungsdifferenzen bei Beiträgen gegen die RefXML (bis etwa 0.20) erst am Quality Tool beurteilen.
 
 **Jahresmeldung (YearlyRetrospective), Stand 04.11.2026 abends:** alle 16 Monate im Quality Tool grün, «Active 982/1129». Offen sind EMA (NotifyChanges) und YearlyProspective. Vergleich jeder gesendeten Meldung mit der Referenz: Archiv `/var/data/hr-system-test/swissdec-certs/archiv/*declare-annual-request.xml` gegen `SWISSCEC/RefXML/*_RETROSPECTIVE.xml` (die Dateien vom 04.11. sind aktuell, die vom September teils veraltet). Testmandant: Schritt 4d (Lohnausweis-Angaben, AHV-Aufteilung, Erfahren-am, Reihenfolge FAK) und 5d (einzelne Lohnzettel neu rechnen). Nach dem Lohntest offen: Masken für AHV-Aufteilung und Wohnort «Erfahren am», Prüfung abweichender SvBasis-Spalten auf Produktion, Steuernummer-Hinweis bei französischen Grenzgängern, Lohnposition 1073 auf Produktion.
+
+## EMA (NotifyChanges) — Analyse 04.11.2026, noch NICHTS gebaut und nichts gesendet
+
+**Ausgangslage:** Es gibt noch keinen EMA-Builder (Etappe E7). `ElmUebermittlung.ArtVon` kennt nur Monats- und Jahresmeldung. EMA ist synchron, also ohne GetStatus (RL 3.2.6); `SynchronizeNotifyChanges` mit Credentials (siehe oben). Vorhanden ist nur die Aufgabenliste `EmaAufgabeRegel`/`EmaAufgabeService` (BVG + QST, ab 2026).
+
+**Referenz:** `SWISSCEC/RefXML/*_EMA.xml`, neu geladen am 04.11.2026: 15 Monate (2025-08 hat keine Datei), 291 Ereignisse. Je Monat eine Sammelmeldung. RL: 8.1.9 (AHV), 8.2.7 (FAK), 8.6.8 (BVG), 8.6.6 (BVG-Basis).
+
+**An den Referenzdaten geprüft:**
+- Zivilstand: `ValidAsOf` = 1. des Folgemonats nach `gueltig_ab`. Gemeldet im späteren der beiden Monate `ValidAsOf` und `erfahren_am` (Bolletto, Châtelain, Rinaldi: 01.04., erfahren 06 → Juni; Armanini: 01.11., erfahren 2026-01 → Januar).
+- Wohnort: `ValidAsOf` = 1. des Folgemonats, ein Datum auf dem 1. bleibt (Lehmann, Müller, Jung, Maldini, Roos, Farine). Forster zieht erst nach dem Austritt um: kein Ereignis.
+- BVG-Basis: `bvg_basis_manuell`, falls gesetzt. Monatslohn × 12, mit 13. ML × 13 (Utzinger, Andrey, Moser, Zahnd, Binggeli). Stundenlohn mit festem Pensum: Wochenstunden × Satz × 52 (Blanc).
+- Kantonswechsel FAK: zwei Ereignisse an beide Kassen, Austritt am Vortag, Grund `cantonChange` (Lehmann, Roos, Maldini, Casanova).
+
+**Noch nicht erklärt:** Basis von Fankhauser 420'000 (30'000 × 14?), Combertaldi 26'400, Lamon 112'663.20 und 90'569.25, Paganini 59'890.10. Dazu ist die Summe aus voraussichtlich + rückwirkend nach RL 8.6.6 (12 Läufe, 360 SV-Tage) zu prüfen.
+
+**Stolpersteine:**
+- Die Gründe in `EmaAufgabeRegel` passen nicht zur Referenz: dort `entryCompany`, `salary`, `address`, `civilStatus`, `plan`. Referenz: `entryPensionPlan`, `changeSalary`, `residence`, `civilstate`, `changeBVG-LPP-Code`.
+- Die BVG-Zeilen im Testmandanten sind unsauber (Überlappungen, Zeilen «Lohnart 5050»), `employee_bvg_pflicht` hat nur 1 Zeile, `employee.entry_date` steht auf der letzten Kette (Farine). Massgebend für Ein-/Austritte ist die Vertragskette.
+- Je Kette ein eigenes `Work` (Farine `#work_TF40_0/_1/_2`), BVG-Ereignis mit `workIDRef` der Kette. Nicht jede Person mit AHV hat ein BVG-Ereignis, und der BVG-Austritt kann früher liegen als der AHV-Austritt (Lusser, Moser: `retirement`).
+- Manuell nach RL 8.6.8: Arbeitsunterbruch (3 Arten), `partialRetirement`, `incapacityToWork`, `fullyFitForWork`. `FullyFitForWork` ist eine Frage an den Anwender bei Ein- und Austritt (Ganz, verstorben: ohne).
+
+**Vorgehen im neuen Chat:** Zuerst die Ereignisse und Basen als Prototyp gegen alle 15 Dateien abgleichen, bis alles erklärt ist. Dann Builder, Versand und Oberfläche bauen. Die BVG-Basis einmal bauen, die YearlyProspective nutzt dieselbe Rechnung (RL 8.6.6).
