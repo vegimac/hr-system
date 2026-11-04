@@ -7,7 +7,9 @@ namespace HrSystem.Controllers;
 /// <summary>
 /// Schritt 4d: Lohnausweis-Angaben der Testfälle (PersonTAX… in testcases_export.csv) in die
 /// Lohnausweis-Angaben der Person. Eigener Schritt, damit nichts an Personen und Mutationen ändert.
+/// Was der Testfall nicht vorgibt, ist ausgeschaltet (KEIN), damit keine Filial-Vorgabe durchschlägt.
 /// Beträge für Umzugskosten gelten je Jahr, darum je Jahr eine Fassung.
+/// Dazu «versichert seit» von UVG und BVG aus company_export.csv.
 /// </summary>
 public partial class SwissdecTestmandantController
 {
@@ -45,6 +47,11 @@ public partial class SwissdecTestmandantController
             var grund = new EmployeeLohnausweis
             {
                 EmployeeId = emp.Id,
+                Ziffer14Modus = "KEIN",
+                SpesenModus = "KEIN",
+                WertModus = "KEIN",
+                ExpatModus = "KEIN",
+                BeteiligungModus = "KEIN",
                 BoxF = X("PersonTAXFreeTransport"),
                 BoxG = X("PersonTAXCanteenLunchCheck"),
                 WagenAbklaeren = X("PersonTAXCompanyCarClarify"),
@@ -93,7 +100,7 @@ public partial class SwissdecTestmandantController
 
             var felder = new Dictionary<string, string?>
             {
-                ["Spesen"] = grund.SpesenModus != null ? $"{grund.SpesenDatum:dd.MM.yyyy} {grund.SpesenKanton}" : grund.Rz52 == true ? "RZ 52" : null,
+                ["Spesen"] = grund.SpesenDatum != null ? $"{grund.SpesenDatum:dd.MM.yyyy} {grund.SpesenKanton}" : grund.Rz52 == true ? "RZ 52" : null,
                 ["Ziffer 14"] = grund.Ziffer14Text,
                 ["Umzug"] = umzug?.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture),
             };
@@ -103,9 +110,27 @@ public partial class SwissdecTestmandantController
             _db.EmployeeLohnausweise.RemoveRange(bisher);
             _db.EmployeeLohnausweise.AddRange(fassungen);
         }
+        var uvgSeit = TmFirmaDatum(firmaPfad, "CompanyAHVAVSUVGLAAInsurerValidAsOf");
+        var bvgSeit = TmFirmaDatum(firmaPfad, "CompanyAHVAVSBVGLPPInsurerValidAsOf");
+        aktionen.Add(new Aktion("aktualisieren", "Stammdaten", "Versichert seit", new Dictionary<string, string?>
+        {
+            ["UVG"] = uvgSeit?.ToString("dd.MM.yyyy"), ["BVG"] = bvgSeit?.ToString("dd.MM.yyyy"),
+        }));
+        if (!vorschau)
+        {
+            var st = await _db.ElmStammdaten.OrderBy(x => x.Id).FirstOrDefaultAsync();
+            if (st == null) _db.ElmStammdaten.Add(st = new ElmStammdaten());
+            st.UvgVersichertSeit = uvgSeit;
+            st.BvgVersichertSeit = bvgSeit;
+            st.UpdatedAt = DateTime.Now;
+        }
         if (!vorschau) await _db.SaveChangesAsync();
         return Ok(new SchrittErgebnis("4d · Lohnausweis-Angaben", vorschau, aktionen, hinweise));
     }
+
+    private static DateOnly? TmFirmaDatum(string pfad, string feld) =>
+        DateOnly.TryParse(System.IO.File.ReadLines(pfad).FirstOrDefault(l => l.StartsWith(feld + ","))?.Split(',')[1],
+            System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : null;
 
     private static (DateOnly Datum, string Kanton)? TmGrant(string? datum, string? kanton) =>
         DateOnly.TryParse(datum, System.Globalization.CultureInfo.InvariantCulture, out var d) && !string.IsNullOrWhiteSpace(kanton)

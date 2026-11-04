@@ -189,7 +189,8 @@ public static class ElmFakAdressierung
     /// </summary>
     public static XElement Totals(Eintrag e, IReadOnlyDictionary<string, Summe> jeKanton)
     {
-        var kantone = e.Kantone.Concat(jeKanton.Keys).Distinct(StringComparer.OrdinalIgnoreCase)
+        // Kasse mit Personen: nur deren Kantone (Quality Tool 2024-11). Nullmeldung: Kantone der Zuordnung.
+        var kantone = (jeKanton.Count > 0 ? jeKanton.Keys : e.Kantone.AsEnumerable()).Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToList();
         if (kantone.Count == 0) kantone.Add("EX");
         return new XElement(Sd + "FAK-CAF-Totals",

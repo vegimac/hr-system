@@ -362,7 +362,8 @@ public class ElmAnnualDeclarationBuilder
                 ketten.Add((e.EntryDate ?? em?.ContractStartDate ?? yearStart, e.ExitDate));
             var works = ketten.Select((k, nr) =>
             {
-                var vertrag = eigeneVertraege.Where(m => m.ContractStartDate >= k.Start && (k.Ende == null || m.ContractStartDate <= k.Ende))
+                // Vertrag am Ende der Meldeperiode, nicht der heutige (Quality Tool 2024-11: TF14 Egli, TF44 Lusser Hans).
+                var vertrag = eigeneVertraege.Where(m => m.ContractStartDate >= k.Start && m.ContractStartDate <= yearEnd && (k.Ende == null || m.ContractStartDate <= k.Ende))
                     .OrderByDescending(m => m.ContractStartDate).FirstOrDefault() ?? em;
                 var work = new XElement(C + "Work",
                     new XAttribute("workID", nr == 0 ? $"#w{e.Id}" : $"#w{e.Id}_{nr}"),
@@ -777,7 +778,8 @@ public class ElmAnnualDeclarationBuilder
 
         // ── Firmenbeschreibung: Rechtseinheit + alle Filialen als Workplaces ─
         var companyName = stamm.Firmenname;
-        var companyDescription = CompanyDescription(stamm,
+        var companyDescription = CompanyDescription(
+            ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn(stamm, rows.Select(r => r.CompanyProfileId).ToHashSet()),
             ElmMonthlyDeclarationBuilder.ArbeitszeitModelle(modelle, zuordnungen, empIds, main.NormalWeeklyHours ?? 42m, warn));
 
         var jobAddressees = new List<XElement>
@@ -832,14 +834,14 @@ public class ElmAnnualDeclarationBuilder
         salaryTotals.AddRange(faks.Select(f => ElmFakAdressierung.Totals(f,
             fakSummen.TryGetValue(f.Kassennummer, out var jeKanton) ? jeKanton : new Dictionary<string, ElmFakAdressierung.Summe>())));
 
-        // UVG-Totale je Betriebsteil und Geschlecht, UVGZ/KTG je Code; Codes der SV-Sätze ohne Personen mit 0.00.
+        // UVG-Totale nur für Betriebsteile mit Personen (Quality Tool 2024-11); UVGZ/KTG je Code, Codes der SV-Sätze ohne Personen mit 0.00.
         IEnumerable<string> SatzCodes(params string[] svCodes) => svSaetze
             .Where(r => svCodes.Contains(r.Code) && !string.IsNullOrWhiteSpace(r.LoesungsCode)
                         && (ganzeFirma || r.CompanyProfileId == null || filialIds.Contains(r.CompanyProfileId.Value)))
             .Select(r => r.LoesungsCode!.Trim()).Distinct(StringComparer.OrdinalIgnoreCase);
         if (versGemeldet.Contains("UVG"))
         {
-            var branchen = ElmVersicherungJahreslohn.UvgTotale(versZeilen["UVG"], SatzCodes("NBUV", "BUV"));
+            var branchen = ElmVersicherungJahreslohn.UvgTotale(versZeilen["UVG"]);
             salaryTotals.Add(new XElement(Sd + "UVG-LAA-Totals",
                 new XAttribute("addresseeIDRef", vers["UVG"].Id),
                 new XElement(Sd + "UVG-LAA-BranchTotals", branchen.Select(b => new XElement(Sd + "UVG-LAA-BranchTotal",
