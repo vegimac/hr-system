@@ -279,6 +279,24 @@ public class ElmEmaEreignisseTests
         Assert.False(ElmEmaBuilder.Vertrag(new HrSystem.Models.Employment { EmploymentModel = "FLEX", HourlyRate = 30m }, 8.33m).FestesPensum);
     }
 
+    [Fact]
+    public void Abweichende_Wochenstunden_sind_ein_festes_Pensum()
+    {
+        // TF01 Herz: 42 h nur am Arbeitszeitmodell, sonst gäbe es im Februar eine falsche Lohnänderung.
+        var herz = new HrSystem.Models.Employment { EmploymentModel = "FLEX", HourlyRate = 50m, ThirteenthSalary = true, Regelmaessig = true };
+        var v = ElmEmaBuilder.Vertrag(herz, 8.33m, 42m);
+        Assert.True(v.FestesPensum);
+        Assert.Equal(118296.36m, ElmBvgBasis.Voraussichtlich(v, new Dictionary<string, decimal>(), ElmBvgBasis.AusKatalog));
+    }
+
+    [Fact]
+    public void Institutionen_folgen_den_Arbeitsorten()
+    {
+        static ElmFakAdressierung.Eintrag K(string nr, string kt) => new("#" + nr, nr, "k", "b", new[] { kt });
+        var r = ElmEmaBuilder.KassenNachArbeitsort(new[] { K("019", "AG"), K("021", "TI"), K("003", "LU") }, new[] { "LU", "BE", "VD", "TI", "AG" });
+        Assert.Equal(new[] { "003", "021", "019" }, r.Select(k => k.Kassennummer));
+    }
+
     [Theory]
     [InlineData("2025-01")]
     [InlineData("2026-01")]

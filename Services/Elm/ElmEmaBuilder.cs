@@ -80,6 +80,7 @@ public class ElmEmaBuilder
         var pflicht = await _db.EmployeeBvgPflichten.AsNoTracking().Where(p => ids.Contains(p.EmployeeId)).ToListAsync(ct);
         var zivil = await _db.EmployeeZivilstandHistories.AsNoTracking().Where(z => ids.Contains(z.EmployeeId)).ToListAsync(ct);
         var wohn = await _db.EmployeeWohnortHistories.AsNoTracking().Where(w => ids.Contains(w.EmployeeId) && !w.DatumOffen).ToListAsync(ct);
+        var zeitmodelle = await _db.EmployeeArbeitszeitmodelle.AsNoTracking().Where(z => ids.Contains(z.EmployeeId)).ToListAsync(ct);
         var manuell = await _db.ElmEmaManuelle.AsNoTracking().Where(m => ids.Contains(m.EmployeeId)).ToListAsync(ct);
         var firmen = stamm.Filialen.ToDictionary(c => c.Id, c => c.DefaultThirteenthSalaryPercent ?? 8.33m);
 
@@ -146,11 +147,14 @@ public class ElmEmaBuilder
                     || eigenePflicht.Any(p => p.Versichert && p.GueltigAb <= ende && (p.GueltigBis == null || p.GueltigBis >= ende)));
                 var filiale = em.CompanyProfileId is int cp ? stamm.Filialen.FirstOrDefault(b => b.Id == cp) : null;
                 lohnJe.TryGetValue((e.Id, m), out var lohn);
+                var zeit = zeitmodelle.Where(z => z.EmployeeId == e.Id && z.GueltigAb <= ende)
+                    .OrderByDescending(z => z.GueltigAb).ThenByDescending(z => z.Id).FirstOrDefault();
                 monate.Add(new E.Monatsstand(m,
                     kette == null ? null : DateOnly.FromDateTime(kette.Value.Start),
                     kette?.Ende is DateTime aus ? DateOnly.FromDateTime(aus) : null,
                     filiale?.KantonCode, versichert, zeile?.Code, zeile?.BvgBasisManuell,
-                    Vertragsart(em), Vertrag(em, em.CompanyProfileId is int f && firmen.TryGetValue(f, out var pct) ? pct : 8.33m),
+                    Vertragsart(em), Vertrag(em, em.CompanyProfileId is int f && firmen.TryGetValue(f, out var pct) ? pct : 8.33m,
+                        zeit?.AbweichendeWochenstunden, zeit?.AbweichendeWochenlektionen),
                     MitVertragslohn(lohn, em)));
             }
             stand[e.Id] = new E.Person(
@@ -373,10 +377,7 @@ public class ElmEmaBuilder
                 ElmAnnualDeclarationBuilder.InsuranceBlock("UVG-LAA-Insurance", uvgE?.Bezeichnung, uvgE?.UidNummer, st?.UvgVersichertSeit, "Keine UVG-Versicherung erfasst"),
                 ElmAnnualDeclarationBuilder.InsuranceBlock("BVG-LPP-Insurance", bvgE?.Bezeichnung, bvgE?.UidNummer, st?.BvgVersichertSeit, "Keine BVG-Versicherung erfasst")));
         }
-        // Reihenfolge wie die Totale der Jahresmeldung: Katalog, sonst Kassennummer.
-        int? Reihenfolge(string nummer) => empf.Where(x => x.Art == "FAK" && (x.Kassennummer ?? "").Trim() == nummer)
-            .Select(x => x.MeldungReihenfolge).FirstOrDefault(r => r != null);
-        foreach (var k in fakKassen.Values.OrderBy(k => Reihenfolge(k.Kassennummer) ?? int.MaxValue).ThenBy(k => k.Kassennummer, StringComparer.Ordinal))
+        foreach (var k in KassenNachArbeitsort(fakKassen.Values, stamm.Filialen.Select(b => b.KantonCode).ToList()))
         {
             addressees.Add(ElmFakAdressierung.JobAddressee(k));
             institutions.Add(ElmFakAdressierung.Institution(k));
@@ -438,6 +439,22 @@ public class ElmEmaBuilder
         return new Ergebnis(xml, zeilen, warn, _validator.Validate(xml));
     }
 
+    /// <summary>
+    /// Die Institutionen folgen den Arbeitsorten (Referenz 2025-01: LU, BE, VD, TI, AG).
+    /// Die Katalog-Reihenfolge gilt für die Totale der Jahresmeldung, dort steht AG vor TI.
+    /// </summary>
+    public static IEnumerable<ElmFakAdressierung.Eintrag> KassenNachArbeitsort(
+        IEnumerable<ElmFakAdressierung.Eintrag> kassen, IReadOnlyList<string?> kantoneDerArbeitsorte)
+    {
+        int Rang(ElmFakAdressierung.Eintrag k)
+        {
+            for (int i = 0; i < kantoneDerArbeitsorte.Count; i++)
+                if (k.Kantone.Contains(kantoneDerArbeitsorte[i] ?? "", StringComparer.OrdinalIgnoreCase)) return i;
+            return int.MaxValue;
+        }
+        return kassen.OrderBy(Rang).ThenBy(k => k.Kassennummer, StringComparer.Ordinal);
+    }
+
     /// <summary>Am Vertrag hinterlegter Arbeitsunterbruch. Mit nahtlosem Folgevertrag endet nichts, die Angabe zählt dann nicht.</summary>
     public static IEnumerable<E.Manuell> UnterbruecheAusVertraegen(IReadOnlyList<Employment> vertraege)
     {
@@ -477,13 +494,15 @@ public class ElmEmaBuilder
         return IstMonatslohnModell(em.EmploymentModel) ? 'M' : 'H';
     }
 
-    public static ElmBvgBasis.Vertrag Vertrag(Employment em, decimal prozent13Firma)
+    /// <param name="abweichendeStunden">Vom Arbeitszeitmodell abweichende Wochenstunden. Sie gehen vor, wie in der gemeldeten Arbeitszeit (TF01 Herz 42 h).</param>
+    public static ElmBvgBasis.Vertrag Vertrag(Employment em, decimal prozent13Firma, decimal? abweichendeStunden = null, decimal? abweichendeLektionen = null)
     {
         var art = Vertragsart(em);
         bool stundenlohn = art == 'H';
-        var stunden = em.WeeklyHours is > 0m ? em.WeeklyHours : em.GuaranteedHoursPerWeek;
-        bool fest = stundenlohn && em.Regelmaessig != false && (stunden is > 0m || em.WeeklyLessons is > 0m);
-        return new ElmBvgBasis.Vertrag(stundenlohn, fest, stunden, em.WeeklyLessons, em.HourlyRate, em.LessonRate,
+        var stunden = abweichendeStunden is > 0m ? abweichendeStunden : em.WeeklyHours is > 0m ? em.WeeklyHours : em.GuaranteedHoursPerWeek;
+        var lektionen = abweichendeLektionen is > 0m ? abweichendeLektionen : em.WeeklyLessons;
+        bool fest = stundenlohn && em.Regelmaessig != false && (stunden is > 0m || lektionen is > 0m);
+        return new ElmBvgBasis.Vertrag(stundenlohn, fest, stunden, lektionen, em.HourlyRate, em.LessonRate,
             stundenlohn && em.ThirteenthSalary ? prozent13Firma : null,
             art == 'M' && em.ThirteenthSalary, art == 'M' && em.VierzehnterMonatslohn);
     }
