@@ -196,6 +196,7 @@ public class EditLockEndpointAuditTests
         ,["SwissdecTestmandantController.Schritt3b"] = "Swissdec-Testmandant Schritt 3b — nur Testinstanz, admin, Kunstdaten"
         ,["SwissdecTestmandantController.Schritt4"]  = "Swissdec-Testmandant Schritt 4 — nur Testinstanz, admin, Kunstdaten"
         ,["SwissdecTestmandantController.Schritt4b"] = "Swissdec-Testmandant Schritt 4b — nur Testinstanz, admin, Kunstdaten"
+        ,["SwissdecTestmandantController.Schritt4d"] = "Swissdec-Testmandant Schritt 4d — nur Testinstanz, admin, Kunstdaten, nur Lohnausweis-Angaben"
         ,["SwissdecTestmandantController.Schritt5"]  = "Swissdec-Testmandant Schritt 5a–c — nur Testinstanz, admin, Kunstdaten"
         ,["MirusFehlendeMaController"]              = "Mirus «fehlende MA» — POST nur für Datei-Upload (analyze/pdf), reine Auswertung, schreibt nichts"
         ,["GastroSocialAbgleichController"]         = "AHV-Abgleich GastroSocial — POST nur für Datei-Upload (analyze), reine Auswertung, schreibt nichts"
