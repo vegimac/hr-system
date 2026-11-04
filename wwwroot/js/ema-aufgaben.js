@@ -2,7 +2,7 @@
 // Die Zeilen kommen aus den erfassten Daten. Freigabe merkt «zur Übermittlung».
 // Die ELM-Datei selbst ist Etappe E7.
 
-function emaInit() { emaRefresh(); }
+function emaInit() { emaRefresh(); emaManInit(); }
 
 async function emaRefresh() {
     const el = document.getElementById('emaPreview');
@@ -117,7 +117,8 @@ async function emaRefPruefen(input) {
         el.innerHTML = '<table class="data-table" style="width:100%"><thead><tr><th>Monat</th><th style="text-align:right">Ereignisse</th>'
             + '<th style="text-align:right">Felder</th><th style="text-align:right">Offen</th><th>Hinweise</th></tr></thead>'
             + `<tbody>${zeilen}</tbody></table>`
-            + '<button type="button" class="btn btn-outline" style="margin-top:10px" onclick="emaRefBerichtLaden()">Bericht herunterladen</button>';
+            + '<button type="button" class="btn btn-outline" style="margin-top:10px" onclick="emaRefBerichtLaden()">Bericht herunterladen</button>'
+            + emaFragenHtml(d.monate.flatMap(m => m.fragen));
     } catch (_) {
         el.textContent = 'Verbindungsfehler.';
     }
@@ -131,4 +132,75 @@ function emaRefText(t) {
 
 function emaRefBerichtLaden() {
     saveBlobAsk(new Blob([_emaRefBericht], { type: 'text/markdown' }), 'ema-abgleich.md');
+}
+
+// 100-%-Arbeitsfähigkeit bei BVG-Eintritt und -Austritt (RL 8.6.8.2).
+let _emaFragen = [];
+
+function emaFragenHtml(fragen) {
+    _emaFragen = fragen;
+    if (!fragen.length) return '';
+    const zeilen = fragen.map((f, i) => `<tr id="emaFrage${i}"><td>${emaRefText(f.name)}</td>`
+        + `<td>${f.art === 'Entry' ? 'Eintritt' : 'Austritt'}</td><td>${f.validAsOf.split('-').reverse().join('.')}</td>`
+        + `<td style="text-align:right;white-space:nowrap"><button type="button" class="btn btn-outline" onclick="emaFrageAntwort(${i},'ja')">Ja</button> `
+        + `<button type="button" class="btn btn-outline" onclick="emaFrageAntwort(${i},'nein')">Nein</button></td></tr>`).join('');
+    return `<h4 style="margin:18px 0 6px">100 % arbeitsfähig? (${fragen.length} offen)</h4>`
+        + '<p class="page-sub" style="margin:0 0 8px">Auch bei hängigen Arbeitsunfähigkeitsabklärungen mit Nein antworten. Nur bei Ja wird FullyFitForWork gemeldet.</p>'
+        + '<button type="button" class="btn btn-outline" style="margin-bottom:8px" onclick="emaFragenAlleJa()">Alle mit Ja beantworten</button>'
+        + `<table class="data-table" style="width:100%"><tbody>${zeilen}</tbody></table>`;
+}
+
+async function emaFrageSenden(f, antwort) {
+    const res = await fetch('/api/elm/ema/manuell', { method: 'POST', headers: ah(), body: JSON.stringify({ employeeId: f.employeeId, monat: f.monat, art: 'Fit', grund: antwort, validAsOf: f.validAsOf }) });
+    return res.ok;
+}
+
+async function emaFrageAntwort(i, antwort) {
+    if (await emaFrageSenden(_emaFragen[i], antwort)) document.getElementById('emaFrage' + i)?.remove();
+}
+
+async function emaFragenAlleJa() {
+    if (!await liquidConfirm(`Alle ${_emaFragen.length} Personen als 100 % arbeitsfähig erfassen?`)) return;
+    for (let i = 0; i < _emaFragen.length; i++) await emaFrageAntwort(i, 'ja');
+}
+
+// Ereignisse, die RL 8.6.8 dem Anwender überlässt.
+async function emaManInit() {
+    const sel = document.getElementById('emaManMa');
+    if (!sel || sel.options.length) return;
+    try {
+        const res = await fetch('/api/employees', { headers: ah(), cache: 'no-store' });
+        const liste = res.ok ? await res.json() : [];
+        liste.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+        sel.innerHTML = '<option value="">Bitte wählen</option>' + liste.map(e => `<option value="${e.id}">${emaRefText((e.firstName || '') + ' ' + (e.lastName || ''))}</option>`).join('');
+        sel.onchange = emaManListe;
+    } catch (_) { /* Liste bleibt leer, Erfassen meldet es */ }
+}
+
+async function emaManListe() {
+    const el = document.getElementById('emaManListe');
+    const id = document.getElementById('emaManMa').value;
+    if (!id) { el.innerHTML = ''; return; }
+    const res = await fetch('/api/elm/ema/manuell?employeeId=' + id, { headers: ah(), cache: 'no-store' });
+    const liste = (res.ok ? await res.json() : []).filter(m => m.art !== 'Fit');
+    el.innerHTML = liste.map(m => `<div style="font-size:12.5px;padding:3px 0">${m.monat.slice(0, 7)} · ${emaRefText(m.grund)} `
+        + `<button type="button" class="btn btn-outline" style="font-size:11px" onclick="emaManLoeschen(${m.id})">Entfernen</button></div>`).join('');
+}
+
+async function emaManSpeichern() {
+    const id = Number(document.getElementById('emaManMa').value);
+    const monat = document.getElementById('emaManMonat').value;
+    const [art, grund] = document.getElementById('emaManGrund').value.split('|');
+    const ab = document.getElementById('emaManAb').value || null;
+    const el = document.getElementById('emaManListe');
+    if (!id || !monat) { el.textContent = 'Bitte Person und Meldemonat wählen.'; return; }
+    const res = await fetch('/api/elm/ema/manuell', { method: 'POST', headers: ah(), body: JSON.stringify({ employeeId: id, monat: monat + '-01', art, grund, validAsOf: ab }) });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); el.textContent = d.message || 'Erfassen fehlgeschlagen.'; return; }
+    await emaManListe();
+}
+
+async function emaManLoeschen(id) {
+    if (!await liquidConfirm('Dieses Ereignis entfernen?')) return;
+    await fetch('/api/elm/ema/manuell/' + id, { method: 'DELETE', headers: ah() });
+    await emaManListe();
 }

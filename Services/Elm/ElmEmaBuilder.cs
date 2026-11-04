@@ -31,7 +31,8 @@ public class ElmEmaBuilder
         _store = store;
     }
 
-    public sealed record Zeile(int EmployeeId, string Name, string? PersonalNr, E.Ereignis Ereignis, bool? Arbeitsfaehig);
+    /// <summary><paramref name="FrageOffen"/>: 100-%-Arbeitsfähigkeit noch nicht beantwortet (RL 8.6.8.2).</summary>
+    public sealed record Zeile(int EmployeeId, string Name, string? PersonalNr, E.Ereignis Ereignis, bool? Arbeitsfaehig, bool FrageOffen = false);
 
     public sealed record Ergebnis(string Xml, List<Zeile> Ereignisse, List<string> Warnungen, List<string> XsdFehler);
 
@@ -61,9 +62,12 @@ public class ElmEmaBuilder
         var bisEnde = bis.AddMonths(1).AddDays(-1).ToDateTime(TimeOnly.MinValue);
         var von = bis.AddMonths(-MonateZurueck);
 
+        // Auch die Verträge nach dem Meldemonat: Sonst sieht jeder Vertragswechsel wie ein Austritt aus (TF11 Bosshard Mai 2025).
         var vertraege = await _db.Employments.AsNoTracking()
-            .Where(v => v.CompanyProfileId != null && filialIds.Contains(v.CompanyProfileId.Value) && v.ContractStartDate <= bisEnde)
+            .Where(v => v.CompanyProfileId != null && filialIds.Contains(v.CompanyProfileId.Value))
             .ToListAsync(ct);
+        var mitVertragImMonat = vertraege.Where(v => v.ContractStartDate <= bisEnde).Select(v => v.EmployeeId).ToHashSet();
+        vertraege = vertraege.Where(v => mitVertragImMonat.Contains(v.EmployeeId)).ToList();
         var ids = vertraege.Select(v => v.EmployeeId).Distinct().ToList();
         var mitarbeitende = await _db.Employees.AsNoTracking()
             .Include(e => e.NationalityRef).Include(e => e.PermitType)
@@ -124,7 +128,8 @@ public class ElmEmaBuilder
             var start = new DateOnly(ersterVertrag.Year, ersterVertrag.Month, 1);
             if (start < von) start = von;
             var monate = new List<E.Monatsstand>();
-            for (var m = start; m <= bis; m = m.AddMonths(1))
+            // Der Folgemonat zeigt, ob die Versicherung per Monatsende endet (TF05 Moser). Gemeldet wird nur der Meldemonat.
+            for (var m = start; m <= bis.AddMonths(1); m = m.AddMonths(1))
             {
                 var anfang = m.ToDateTime(TimeOnly.MinValue);
                 var ende = m.AddMonths(1).AddDays(-1);
@@ -146,7 +151,7 @@ public class ElmEmaBuilder
                     kette?.Ende is DateTime aus ? DateOnly.FromDateTime(aus) : null,
                     filiale?.KantonCode, versichert, zeile?.Code, zeile?.BvgBasisManuell,
                     Vertragsart(em), Vertrag(em, em.CompanyProfileId is int f && firmen.TryGetValue(f, out var pct) ? pct : 8.33m),
-                    lohn ?? LohnAusVertrag(em)));
+                    MitVertragslohn(lohn, em)));
             }
             stand[e.Id] = new E.Person(
                 DateOnly.FromDateTime(e.DateOfBirth.Value), e.Gender,
@@ -243,10 +248,15 @@ public class ElmEmaBuilder
                 if (x.Grund == "deceased") return false;
                 var a = geladen.Manuell.FirstOrDefault(m => m.EmployeeId == e.Id && m.Art == ElmEmaManuell.ArtFit && m.ValidAsOf == x.ValidAsOf);
                 if (a != null) return a.Grund == "ja";
-                var c = x.Art == E.Entry ? BvgVollArbeitsfaehig(e.Id, x.ValidAsOf) : null;
-                if (c is bool b) return b;
+                return x.Art == E.Entry && BvgVollArbeitsfaehig(e.Id, x.ValidAsOf) == true;
+            }
+            bool FrageOffen(E.Ereignis x)
+            {
+                if (x.Domaene != E.Bvg || x.Art == E.Mutation || x.Grund == "deceased") return false;
+                if (geladen.Manuell.Any(m => m.EmployeeId == e.Id && m.Art == ElmEmaManuell.ArtFit && m.ValidAsOf == x.ValidAsOf)) return false;
+                if (x.Art == E.Entry && BvgVollArbeitsfaehig(e.Id, x.ValidAsOf) != null) return false;
                 ohneFrage.Add($"{e.FirstName} {e.LastName}: {(x.Art == E.Entry ? "Eintritt" : "Austritt")} {x.ValidAsOf:dd.MM.yyyy}");
-                return false;
+                return true;
             }
             bool? BvgVollArbeitsfaehig(int id, DateOnly tag) => geladen.Codes
                 .Where(c => c.EmployeeId == id && c.Art == "BVG" && c.GiltAm(tag))
@@ -296,6 +306,8 @@ public class ElmEmaBuilder
             var vollzeit = modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : stamm.Haupt.NormalWeeklyHours ?? 42m;
 
             var (ziv, zivSeit, _) = ZivilstandHistorieService.Am(geladen.Zivilstand.Where(h => h.EmployeeId == e.Id), monatsEndeTag, e.MaritalStatus, e.MaritalStatusSince);
+            // Ledig ohne Datum: seit Geburt (TF36 Maldini Januar 2025, Eintrag «seit jeher»).
+            if (zivSeit == null && MapCivilStatus(ziv) == "single") zivSeit = DateOnly.FromDateTime(e.DateOfBirth!.Value);
             var wohnHist = geladen.Wohnort.Where(h => h.EmployeeId == e.Id).ToList();
             var wohnAm = WohnortHistorieService.Am(wohnHist, monatsEndeTag, e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
             var adresseAm = new PersonAdresseAm(wohnAm.Strasse, wohnAm.Plz, wohnAm.Ort, wohnAm.Land, wohnAm.KantonCode);
@@ -308,7 +320,7 @@ public class ElmEmaBuilder
             var bloecke = E.Bloecke(persZeilen, Adressat, WorkVon, Fit).ToList();
             foreach (var x in persZeilen)
                 zeilen.Add(new Zeile(e.Id, $"{e.FirstName} {e.LastName}".Trim(), e.EmployeeNumber, x,
-                    x.Domaene == E.Bvg && x.Art != E.Mutation ? Fit(x) : null));
+                    x.Domaene == E.Bvg && x.Art != E.Mutation ? Fit(x) : null, FrageOffen(x)));
 
             personen.Add(new XElement(Sd + "Person",
                 Particulars(e, warn, Gemeinde(adresseAm.Zip, adresseAm.City), permitAmEnde, ziv, zivSeit, adresseAm, adresseVorher, umzug?.Wegzug,
@@ -355,7 +367,10 @@ public class ElmEmaBuilder
                 ElmAnnualDeclarationBuilder.InsuranceBlock("UVG-LAA-Insurance", uvgE?.Bezeichnung, uvgE?.UidNummer, st?.UvgVersichertSeit, "Keine UVG-Versicherung erfasst"),
                 ElmAnnualDeclarationBuilder.InsuranceBlock("BVG-LPP-Insurance", bvgE?.Bezeichnung, bvgE?.UidNummer, st?.BvgVersichertSeit, "Keine BVG-Versicherung erfasst")));
         }
-        foreach (var k in fakKassen.Values.OrderBy(k => k.Kassennummer))
+        // Reihenfolge wie die Totale der Jahresmeldung: Katalog, sonst Kassennummer.
+        int? Reihenfolge(string nummer) => empf.Where(x => x.Art == "FAK" && (x.Kassennummer ?? "").Trim() == nummer)
+            .Select(x => x.MeldungReihenfolge).FirstOrDefault(r => r != null);
+        foreach (var k in fakKassen.Values.OrderBy(k => Reihenfolge(k.Kassennummer) ?? int.MaxValue).ThenBy(k => k.Kassennummer, StringComparer.Ordinal))
         {
             addressees.Add(ElmFakAdressierung.JobAddressee(k));
             institutions.Add(ElmFakAdressierung.Institution(k));
@@ -429,17 +444,28 @@ public class ElmEmaBuilder
     {
         var art = Vertragsart(em);
         bool stundenlohn = art == 'H';
-        bool fest = stundenlohn && em.Regelmaessig != false && (em.GuaranteedHoursPerWeek is > 0m || em.WeeklyLessons is > 0m);
-        return new ElmBvgBasis.Vertrag(stundenlohn, fest, em.GuaranteedHoursPerWeek, em.WeeklyLessons, em.HourlyRate, em.LessonRate,
+        var stunden = em.WeeklyHours is > 0m ? em.WeeklyHours : em.GuaranteedHoursPerWeek;
+        bool fest = stundenlohn && em.Regelmaessig != false && (stunden is > 0m || em.WeeklyLessons is > 0m);
+        return new ElmBvgBasis.Vertrag(stundenlohn, fest, stunden, em.WeeklyLessons, em.HourlyRate, em.LessonRate,
             stundenlohn && em.ThirteenthSalary ? prozent13Firma : null,
             art == 'M' && em.ThirteenthSalary, art == 'M' && em.VierzehnterMonatslohn);
     }
 
-    /// <summary>Noch kein abgeschlossener Lauf im Monat: der Monatslohn des Vertrags per Wirkungsdatum (RL 8.6.6.1).</summary>
-    private static Dictionary<string, decimal> LohnAusVertrag(Employment em)
+    /// <summary>
+    /// Lohnzeilen für die BVG-Basis. Der Monatslohn zählt aus dem Vertrag: Der Lohnzettel ist im Ein- und
+    /// Austrittsmonat anteilig (TF25 Lehmann 8'400 statt 12'000, RL 8.6.6.3 «fix zugeteilte Lohnarten»).
+    /// Der 13. eines Stundenlohns steht in älteren Lohnzetteln als 1200 und gehört in die Rückschau (TF02 Paganini).
+    /// </summary>
+    public static Dictionary<string, decimal> MitVertragslohn(IReadOnlyDictionary<string, decimal>? lohn, Employment em)
     {
         var res = new Dictionary<string, decimal>();
-        if (Vertragsart(em) == 'M' && em.MonthlySalary is > 0m) res["1000"] = em.MonthlySalary.Value;
+        var art = Vertragsart(em);
+        foreach (var (code, betrag) in lohn ?? new Dictionary<string, decimal>())
+        {
+            var c = art == 'H' && code == "1200" ? "1201" : code;
+            res[c] = res.GetValueOrDefault(c) + betrag;
+        }
+        if (art == 'M' && em.MonthlySalary is > 0m) res["1000"] = em.MonthlySalary.Value;
         return res;
     }
 

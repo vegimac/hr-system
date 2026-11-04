@@ -186,6 +186,45 @@ public class ElmEmaEreignisseTests
         Assert.Equal(291, verglichen);
     }
 
+    [Fact]
+    public void Ohne_freigegebene_Jahresmeldung_rechnet_der_Januar_selbst()
+    {
+        // Auf der Testinstanz ist keine Prospective freigegeben (TF37 Oberli Januar 2025: keine Lohnänderung).
+        var ist = LadePersonen().SelectMany(kv => E.Erkenne(kv.Value with { Jahresmeldungen = new Dictionary<DateOnly, decimal>() }, ElmBvgBasis.AusKatalog)
+            .Select(x => Zeile(x.Monat.ToString("yyyy-MM"), kv.Key, x.Domaene, x.Art, x.ValidAsOf.ToString("yyyy-MM-dd"), x.Grund, x.BvgCode, x.Basis, x.Kanton))).ToList();
+        var soll = Referenz();
+        Assert.Empty(soll.Except(ist));
+        Assert.Empty(ist.Except(soll));
+    }
+
+    [Fact]
+    public void Monatslohn_aus_dem_Vertrag_nicht_anteilig()
+    {
+        var em = new HrSystem.Models.Employment { EmploymentModel = "FIX", MonthlySalary = 12000m };
+        var lohn = ElmEmaBuilder.MitVertragslohn(new Dictionary<string, decimal> { ["1000"] = 8400m, ["1033"] = 200m }, em);
+        Assert.Equal(12000m, lohn["1000"]);
+        Assert.Equal(200m, lohn["1033"]);
+    }
+
+    [Fact]
+    public void Dreizehnter_im_Stundenlohn_zaehlt_in_die_Rueckschau()
+    {
+        var em = new HrSystem.Models.Employment { EmploymentModel = "FLEX" };
+        var lohn = ElmEmaBuilder.MitVertragslohn(new Dictionary<string, decimal> { ["1200"] = 204.75m, ["1201"] = 100m }, em);
+        Assert.Equal(304.75m, lohn["1201"]);
+        Assert.False(lohn.ContainsKey("1200"));
+    }
+
+    [Fact]
+    public void Festes_Pensum_im_Stundenlohn_aus_den_Wochenstunden()
+    {
+        var blanc = new HrSystem.Models.Employment { EmploymentModel = "FLEX", WeeklyHours = 8.4m, HourlyRate = 30m, ThirteenthSalary = false };
+        var v = ElmEmaBuilder.Vertrag(blanc, 8.33m);
+        Assert.True(v.FestesPensum);
+        Assert.Equal(13104m, ElmBvgBasis.Voraussichtlich(v, new Dictionary<string, decimal>(), ElmBvgBasis.AusKatalog));
+        Assert.False(ElmEmaBuilder.Vertrag(new HrSystem.Models.Employment { EmploymentModel = "FLEX", HourlyRate = 30m }, 8.33m).FestesPensum);
+    }
+
     [Theory]
     [InlineData("2025-01")]
     [InlineData("2026-01")]

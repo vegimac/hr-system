@@ -119,8 +119,13 @@ public static class ElmEmaEreignisse
                 letzteBasis = s.ManuelleBasis ?? ElmBvgBasis.Runde5Rappen(voraussichtlichAlt.Value);
                 Add(Bvg, Entry, ab, manuellEin?.Grund ?? "entryPensionPlan", code, letzteBasis);
             }
-            if (bvg && !bvgNeu && p.Jahresmeldungen.TryGetValue(ersterDesMonats, out var jm))
-                letzteBasis = jm;
+            // Der Januar stützt sich auf die voraussichtliche Jahresmeldung: freigegeben, sonst dieselbe Rechnung (TF37 Oberli).
+            if (bvg && !bvgNeu && monat.Month == 1)
+            {
+                letzteBasis = p.Jahresmeldungen.TryGetValue(ersterDesMonats, out var jm) ? jm
+                    : ElmBvgBasis.FuerJahresmeldung(ersterDesMonats, s.ManuelleBasis, s.Vertrag, s.Lohnarten, laeufe, rueckschauAb, steuerung);
+                voraussichtlichAlt = ElmBvgBasis.Voraussichtlich(s.Vertrag, s.Lohnarten, steuerung);
+            }
 
             if (bvg && !bvgNeu)
             {

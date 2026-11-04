@@ -92,6 +92,10 @@ public class ElmEmaController : HrControllerBase
             {
                 monat = m.ToString("yyyy-MM"), referenz = quellen.ContainsKey(m), ereignisse = r.Ereignisse.Count,
                 geprueft, offen, xsdFehler = r.XsdFehler, warnungen = r.Warnungen,
+                fragen = r.Ereignisse.Where(z => z.FrageOffen).Select(z => new
+                {
+                    z.EmployeeId, z.Name, z.Ereignis.Art, validAsOf = z.Ereignis.ValidAsOf.ToString("yyyy-MM-dd"), monat = m.ToString("yyyy-MM-dd"),
+                }),
             });
         }
         return Ok(new { monate, bericht = bericht.ToString() });
@@ -113,6 +117,10 @@ public class ElmEmaController : HrControllerBase
         };
         if (!gueltig) return BadRequest(new { error = "GRUND_UNGUELTIG", message = "Diese Kombination aus Art und Grund ist nicht manuell auslösbar." });
         if (!await _db.Employees.AnyAsync(e => e.Id == d.EmployeeId, ct)) return NotFound();
+        // Die Antwort zur Arbeitsfähigkeit gibt es je Ereignis nur einmal.
+        if (d.Art == ElmEmaManuell.ArtFit)
+            _db.ElmEmaManuelle.RemoveRange(await _db.ElmEmaManuelle
+                .Where(m => m.EmployeeId == d.EmployeeId && m.Art == ElmEmaManuell.ArtFit && m.ValidAsOf == d.ValidAsOf).ToListAsync(ct));
         var neu = new ElmEmaManuell
         {
             EmployeeId = d.EmployeeId, Monat = new DateOnly(d.Monat.Year, d.Monat.Month, 1),
