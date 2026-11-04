@@ -263,4 +263,15 @@ public class ElmVersicherungJahresmeldungTests
         }
         return db;
     }
+
+    [Fact]
+    public void Empfaenger_zugeordnet_geht_vor_erster_im_Katalog()
+    {
+        var swica = new HrSystem.Models.LohndatenEmpfaenger { Id = 4, Art = "UVG", Bezeichnung = "Swica" };
+        var backwork = new HrSystem.Models.LohndatenEmpfaenger { Id = 19, Art = "UVG", Bezeichnung = "Backwork" };
+        backwork.Zuordnungen.Add(new() { CompanyProfileId = 1, IsActive = true });
+        var w = HrSystem.Services.Elm.ElmAnnualDeclarationBuilder.WaehleEmpfaenger(new[] { swica, backwork }, new DateOnly(2024, 11, 30), null);
+        Assert.Equal(19, w!.Id);
+        Assert.Equal(4, HrSystem.Services.Elm.ElmAnnualDeclarationBuilder.WaehleEmpfaenger(new[] { swica }, new DateOnly(2024, 11, 30), null)!.Id);
+    }
 }

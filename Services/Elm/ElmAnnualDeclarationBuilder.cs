@@ -45,6 +45,19 @@ public class ElmAnnualDeclarationBuilder
         string Xml, int Personen, int Uebersprungen, decimal TotalAhv, decimal TotalAlv,
         List<string> Warnungen, List<string> XsdFehler);
 
+    /// <summary>
+    /// Empfänger einer Art: zuerst einer, der am Stichtag zugeordnet ist, sonst wie bisher der erste.
+    /// Muster AG: Katalog mit Swica (S122) ohne Zuordnung, zugeordnet ist Backwork (S1000);
+    /// AHV 2024 Spida (bis 31.12.2024), ab 2025 Ausgleichskasse Luzern.
+    /// </summary>
+    public static LohndatenEmpfaenger? WaehleEmpfaenger(IEnumerable<LohndatenEmpfaenger> kandidaten, DateOnly stichtag, IReadOnlySet<int>? nurFilialen)
+    {
+        var liste = kandidaten.ToList();
+        return liste.FirstOrDefault(e => e.Zuordnungen.Any(z => z.GiltAm(stichtag)
+                   && (nurFilialen == null || nurFilialen.Contains(z.CompanyProfileId))))
+               ?? liste.FirstOrDefault();
+    }
+
     public Task<BuildResult> BuildAhvAsync(int year, CancellationToken ct = default)
         => BuildAhvAsync(year, null, ct);
 
@@ -88,7 +101,6 @@ public class ElmAnnualDeclarationBuilder
             .Where(e => e.IsActive)
             .OrderBy(e => e.Id)
             .ToListAsync(ct);
-        var akE = empf.FirstOrDefault(e => e.Art == "AUSGLEICHSKASSE");
         static bool IstZusatz(Models.LohndatenEmpfaenger e) =>
             (e.Bezeichnung + " " + (e.Zusatz ?? "")).ToLowerInvariant().Contains("zusatz");
         // Stichtag für die Zuordnung = 31.12. des Lohnjahres (Gültig ab/bis, Walter 07.09.2026)
@@ -96,8 +108,12 @@ public class ElmAnnualDeclarationBuilder
         bool GehoertHier(Models.LohndatenEmpfaenger e) =>
             ganzeFirma
             || e.Zuordnungen.Any(z => filialIds.Contains(z.CompanyProfileId) && z.GiltAm(stichtagZuord));
-        var uvgE = empf.FirstOrDefault(e => e.Art == "UVG" && !IstZusatz(e) && GehoertHier(e));
-        var bvgE = empf.FirstOrDefault(e => e.Art == "BVG" && GehoertHier(e));
+        // Zugeordnet am Stichtag geht vor: Der Katalog führt auch Einträge, die der Firma nicht gehören.
+        Models.LohndatenEmpfaenger? Waehle(Func<Models.LohndatenEmpfaenger, bool> art)
+            => WaehleEmpfaenger(empf.Where(art), stichtagZuord, ganzeFirma ? null : filialIds);
+        var akE = Waehle(e => e.Art == "AUSGLEICHSKASSE");
+        var uvgE = Waehle(e => e.Art == "UVG" && !IstZusatz(e) && GehoertHier(e));
+        var bvgE = Waehle(e => e.Art == "BVG" && GehoertHier(e));
         string? GemeinsameMitgliedNr(Models.LohndatenEmpfaenger? e)
         {
             if (e == null) return null;
@@ -185,8 +201,8 @@ public class ElmAnnualDeclarationBuilder
             .ToListAsync(ct);
         var uvgHoechstMonat = svSaetze.Where(r => r.Code is "NBUV" or "BUV" && r.MaxBaseMonthly is > 0)
             .Select(r => r.MaxBaseMonthly!.Value).DefaultIfEmpty(AlvMonatsCap).Max();
-        var uvgzE = empf.FirstOrDefault(e => (e.Art == "UVGZ" || (e.Art == "UVG" && IstZusatz(e))) && GehoertHier(e));
-        var ktgE = empf.FirstOrDefault(e => e.Art == "KTG" && GehoertHier(e));
+        var uvgzE = Waehle(e => (e.Art == "UVGZ" || (e.Art == "UVG" && IstZusatz(e))) && GehoertHier(e));
+        var ktgE = Waehle(e => e.Art == "KTG" && GehoertHier(e));
         var vers = new Dictionary<string, Versicherer>();
         foreach (var (art, e, id) in new[] { ("UVG", uvgE, "#uvg"), ("UVGZ", uvgzE, "#uvgz"), ("KTG", ktgE, "#ktg") })
         {
