@@ -233,6 +233,26 @@ public partial class SwissdecTestmandantController
         ("11", 2025, 12), ("9", 2025, 12), ("40", 2025, 12),
     };
 
+    /// <summary>
+    /// TF40 Farine: die Probezeit bis 28.02.2026 steht nur wegen Februar 2026 im Vertrag (Regel 12 in
+    /// docs/swissdec-abgeleitete-regeln.md). Der Dezember wurde ohne sie gerechnet und zahlt den 13. aus,
+    /// darum gilt sie beim Neurechnen des Dezembers nicht.
+    /// </summary>
+    private async Task<int> TmNeuRechnenMitVertragVonDamals(HrSystem.Services.SnapshotRecomputeService recompute,
+        string nr, int companyProfileId, int employeeId, int jahr, int monat)
+    {
+        Employment? vertrag = nr == "40" && jahr == 2025 && monat == 12
+            ? await _db.Employments.FirstOrDefaultAsync(m => m.EmployeeId == employeeId && m.ContractStartDate == new DateTime(2025, 12, 1))
+            : null;
+        var probezeit = vertrag?.ProbationEndDate;
+        if (vertrag != null) { vertrag.ProbationEndDate = null; await _db.SaveChangesAsync(); }
+        try { return await recompute.RecomputeAsync(companyProfileId, jahr, monat, employeeId); }
+        finally
+        {
+            if (vertrag != null) { vertrag.ProbationEndDate = probezeit; await _db.SaveChangesAsync(); }
+        }
+    }
+
     [HttpGet("schritt5d/vorschau")]
     public async Task<IActionResult> Schritt5dVorschau() => await Schritt5d(true);
 
@@ -256,7 +276,7 @@ public partial class SwissdecTestmandantController
             var felder = new Dictionary<string, string?> { ["vorher Netto"] = snap.Netto.ToString("0.00"), ["vorher AHV-Basis"] = snap.SvBasisAhv.ToString("0.00") };
             if (!vorschau)
             {
-                await recompute.RecomputeAsync(snap.CompanyProfileId, jahr, monat, snap.EmployeeId);
+                await TmNeuRechnenMitVertragVonDamals(recompute, nr, snap.CompanyProfileId, snap.EmployeeId, jahr, monat);
                 await _db.SaveChangesAsync();
                 var neu = await _db.PayrollSnapshots.AsNoTracking().Where(s => s.Id == snap.Id).Select(s => new { s.Netto, s.SvBasisAhv }).FirstAsync();
                 felder["Netto"] = neu.Netto.ToString("0.00");
