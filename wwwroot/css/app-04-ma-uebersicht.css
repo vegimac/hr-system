@@ -276,8 +276,9 @@
         body.theme-dark .ma-land-en { color: rgba(210, 220, 232, 0.78); }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-tel2 .ov-softin {
             /* Kein Datums-Icon, also kein Platz rechts: Das Dokument-Zeichen bei der AHV-Nummer blieb sonst draussen. */
-            width: 9.5ch;
-            min-width: 9.5ch;
+            /* Passt auch für +49 1512 3456789. */
+            width: 10.5ch;
+            min-width: 10.5ch;
             max-width: none;
             padding-right: 4px !important;
             text-overflow: clip;
