@@ -388,7 +388,7 @@ public partial class SwissdecTestmandantController
             // Lohnausweis-/Statistik-Angaben nur melden (kommen mit Lohnausweis/Statistik)
             var sonst = new[] { "PersonTAXCanteenLunchCheck", "PersonTAXFreeTransport", "PersonTAXRelocationCosts", "PersonTAXStaffShareMarketValueDate", "PersonTAXExpatriateRulingDate", "PersonTAXChildAllowancePerAHVAVS", "PersonTAXCompanyCarClarify", "PersonTAXBlockedOptions", "PersonTAXUnquotedOptions" }
                 .Where(k => V(k) != null).Select(k => k.Replace("PersonTAX", "")).ToList();
-            if (sonst.Count > 0) probleme.Add("Lohnausweis-Angaben in den Testdaten: " + string.Join(", ", sonst) + " — Lohnausweis-Modul (später).");
+            if (sonst.Count > 0) probleme.Add("Lohnausweis-Angaben in den Testdaten: " + string.Join(", ", sonst) + " — Schritt 4d.");
             if (V("PersonLeaveEntitlement") is { } fer) felder["Ferien"] = $"{Dez(fer):0} Tage/Jahr (Testdaten; OneCrew rechnet Ferienwochen über Filiale/Alter)";
 
             if (probleme.Count > 0) felder["⚠ Hinweise"] = string.Join(" | ", probleme);

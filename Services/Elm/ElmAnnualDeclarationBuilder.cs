@@ -298,13 +298,16 @@ public class ElmAnnualDeclarationBuilder
         // ── Personen ──────────────────────────────────────────────────────
         var lpByCode = (await _db.Lohnpositionen.AsNoTracking().ToListAsync(ct))
             .GroupBy(l => l.Code).ToDictionary(g => g.Key, g => g.First());
+        var personenLa = await _db.EmployeeLohnausweise.AsNoTracking().Where(p => empIds.Contains(p.EmployeeId)).ToListAsync(ct);
+        var fassungenLa = await _db.CompanyLohnausweise.AsNoTracking().Where(f => filialIds.Contains(f.CompanyProfileId)).ToListAsync(ct);
+        var qstZeiten = await _db.EmployeeQuellensteuer.AsNoTracking().Where(q => empIds.Contains(q.EmployeeId)).ToListAsync(ct);
         var taxKantone = new SortedSet<string>(StringComparer.Ordinal);
         int taxTags = 0;
         var persons = new List<XElement>();
         int skipped = rows.GroupBy(r => r.EmployeeId).Count() - perEmp.Count;
         if (skipped > 0)
             warn.Add($"{skipped} MA ohne AHV-pflichtigen Lohn {year} übersprungen (z.B. unter 18 / nur 0-Läufe).");
-        decimal totalAhv = 0, totalAlv = 0, totalAhvFrei = 0, totalAlvFrei = 0;
+        decimal totalAhv = 0, totalAlv = 0, totalAlvz = 0, totalAhvFrei = 0, totalAlvFrei = 0;
         var salaryTags = 0;
 
         foreach (var x in perEmp)
@@ -347,18 +350,31 @@ public class ElmAnnualDeclarationBuilder
                 .OrderByDescending(z => z.GueltigAb).ThenByDescending(z => z.Id).FirstOrDefault();
             var modell = (zuordnung != null ? modelle.FirstOrDefault(m => m.Id == zuordnung.ArbeitszeitmodellId) : null)
                          ?? modelle.FirstOrDefault();
-            var workingTime = WorkingTime(em,
-                modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : main.NormalWeeklyHours ?? 42m,
-                zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen, modell?.Wochenlektionen);
-
-            var entry = e.EntryDate ?? em?.ContractStartDate ?? yearStart;
-            var work = new XElement(C + "Work",
-                new XAttribute("workID", $"#w{e.Id}"),
-                new XAttribute("companyWorkingTimeIDRef", "#" + (modell?.KennungOderId ?? "cwt1")),
-                new XElement(C + "WorkingTime", workingTime),
-                new XElement(C + "EntryDate", entry.ToString("yyyy-MM-dd")));
-            if (e.ExitDate != null && e.ExitDate.Value >= yearStart && e.ExitDate.Value <= yearEnd)
-                work.Add(new XElement(C + "WithdrawalDate", e.ExitDate.Value.ToString("yyyy-MM-dd")));
+            // Eine Work je Anstellung mit Lohn in der Meldeperiode, Daten wie damals: ein späterer
+            // Wiedereintritt überschreibt die Stammdaten (Quality Tool 2024-11: TF16 Aebi).
+            var eigeneVertraege = employments.Where(m => m.EmployeeId == x.EmployeeId).ToList();
+            (DateTime Start, DateTime? Ende)? KetteIm(int monat) => ElmMonthlyDeclarationBuilder.Anstellung(eigeneVertraege,
+                new DateTime(year, monat, 1), new DateTime(year, monat, DateTime.DaysInMonth(year, monat)));
+            var ketten = rowsByEmp[x.EmployeeId].Select(r => r.Month).Distinct().OrderBy(m => m)
+                .Select(KetteIm).Where(k => k != null).Select(k => k!.Value)
+                .DistinctBy(k => k.Start).ToList();
+            if (ketten.Count == 0)
+                ketten.Add((e.EntryDate ?? em?.ContractStartDate ?? yearStart, e.ExitDate));
+            var works = ketten.Select((k, nr) =>
+            {
+                var vertrag = eigeneVertraege.Where(m => m.ContractStartDate >= k.Start && (k.Ende == null || m.ContractStartDate <= k.Ende))
+                    .OrderByDescending(m => m.ContractStartDate).FirstOrDefault() ?? em;
+                var work = new XElement(C + "Work",
+                    new XAttribute("workID", nr == 0 ? $"#w{e.Id}" : $"#w{e.Id}_{nr}"),
+                    new XAttribute("companyWorkingTimeIDRef", "#" + (modell?.KennungOderId ?? "cwt1")),
+                    new XElement(C + "WorkingTime", WorkingTime(vertrag,
+                        modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : main.NormalWeeklyHours ?? 42m,
+                        zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen, modell?.Wochenlektionen)),
+                    new XElement(C + "EntryDate", k.Start.ToString("yyyy-MM-dd")));
+                if (k.Ende != null && k.Ende.Value <= yearEnd)
+                    work.Add(new XElement(C + "WithdrawalDate", k.Ende.Value.ToString("yyyy-MM-dd")));
+                return work;
+            }).ToList();
 
             codesByEmp.TryGetValue(x.EmployeeId, out var codes);
             var monate = rowsByEmp[x.EmployeeId]
@@ -368,18 +384,26 @@ public class ElmAnnualDeclarationBuilder
                     g.Key,
                     g.Sum(r => r.SvBasisAhv),
                     g.Sum(r => Math.Min(r.SvBasisAhv, AlvMonatsCap)),
-                    ArtDesMonats(e, year, g.Key, codes, ahvStand)))
+                    ArtDesMonats(e, year, g.Key, codes, ahvStand))
+                {
+                    Kette = KetteIm(g.Key)?.Start,
+                    Lohnzettel = ElmAhvJahreslohn.AusLohnzetteln(g.Select(r => r.SlipJson)),
+                })
                 .ToList();
 
-            // Ein-/Austritt im ersten bzw. letzten Monat eines Abschnitts: genaues Datum (Swissdec-Referenz).
-            var eigeneVertraege = employments.Where(m => m.EmployeeId == x.EmployeeId).ToList();
+            // Zeitraum eines Abschnitts: genaues Datum bei Ein-/Austritt im ersten bzw. letzten Monat.
+            // Lohn nach dem Austritt zählt zur beendeten Anstellung, auch aus dem Vorjahr
+            // (Referenz 2026-02: TF06 Zahnd 01.01.–31.10.2025).
             (DateTime Von, DateTime Bis) Zeit(int von, int bis)
             {
-                var vonKette = ElmMonthlyDeclarationBuilder.Anstellung(eigeneVertraege,
-                    new DateTime(year, von, 1), new DateTime(year, von, DateTime.DaysInMonth(year, von)));
-                var bisKette = ElmMonthlyDeclarationBuilder.Anstellung(eigeneVertraege,
-                    new DateTime(year, bis, 1), new DateTime(year, bis, DateTime.DaysInMonth(year, bis)));
-                return ElmFakJahreslohn.Zeitraum(year, von, bis, vonKette?.Start, bisKette?.Ende);
+                var vonKette = KetteIm(von);
+                var bisKette = KetteIm(bis);
+                var (zeitVon, zeitBis) = ElmFakJahreslohn.Zeitraum(year, von, bis, vonKette?.Start, bisKette?.Ende);
+                if (vonKette?.Ende is DateTime vonEnde && vonEnde < new DateTime(year, von, 1))
+                    zeitVon = vonKette.Value.Start > new DateTime(vonEnde.Year, 1, 1) ? vonKette.Value.Start : new DateTime(vonEnde.Year, 1, 1);
+                if (bisKette?.Ende is DateTime bisEnde && bisEnde < new DateTime(year, bis, 1))
+                    zeitBis = bisEnde;
+                return (zeitVon, zeitBis);
             }
 
             var salaries = new XElement(Sd + "AHV-AVS-Salaries");
@@ -397,6 +421,8 @@ public class ElmAnnualDeclarationBuilder
                 if (a.AhvFrei != 0)
                     salary.Add(new XElement(Sd + "AHV-AVS-Open", Betrag05(a.AhvFrei)));
                 salary.Add(new XElement(Sd + "ALV-AC-Income", Betrag05(a.AlvLohn)));
+                if (a.MitAlvz)
+                    salary.Add(new XElement(Sd + "ALVZ-ACS-Income", Betrag05(a.AlvzLohn)));
                 if (a.AlvFrei != 0)
                     salary.Add(new XElement(Sd + "ALV-AC-Open", Betrag05(a.AlvFrei)));
                 if (a.Art == ElmAhvJahreslohn.Art.Verzicht)
@@ -406,19 +432,32 @@ public class ElmAnnualDeclarationBuilder
                 // Totale = Summe der gemeldeten (gerundeten) Einzelwerte, sonst passen sie nicht zusammen.
                 totalAhv += PayrollCalculations.Round05(a.AhvLohn);
                 totalAlv += PayrollCalculations.Round05(a.AlvLohn);
+                if (a.MitAlvz) totalAlvz += PayrollCalculations.Round05(a.AlvzLohn);
                 totalAhvFrei += PayrollCalculations.Round05(a.AhvFrei);
                 totalAlvFrei += PayrollCalculations.Round05(a.AlvFrei);
             }
 
             var fakSalaries = FakSalaries(e, x.EmployeeId, monate, ahvAbschnitte, Zeit);
-            persons.Add(new XElement(Sd + "Person", particulars, work, salaries, fakSalaries,
+            // Lohnausweis-Angaben wie auf dem Papier-Lohnausweis: Filiale des letzten Lohnzettels als Vorgabe, Person überschreibt.
+            var letzteZeile = rowsByEmp[x.EmployeeId].OrderBy(r => r.Month).Last();
+            var filialeLa = branches.FirstOrDefault(b => b.Id == letzteZeile.CompanyProfileId);
+            var firmaLa = filialeLa == null ? null : LohnausweisFassung.ProfilFuerJahr(filialeLa,
+                fassungenLa.Where(f => f.CompanyProfileId == filialeLa.Id), year);
+            var wirkung = LohnausweisAngaben.Aufloesen(firmaLa,
+                LohnausweisFassung.FuerJahr(personenLa.Where(p => p.EmployeeId == e.Id), year, p => p.GueltigAb, p => p.GueltigBis),
+                year, null);
+            var qstBis = stichtagEnde;
+            var qstAmEnde = qstZeiten.Any(q => q.EmployeeId == e.Id && q.ValidFrom <= qstBis && (q.ValidTo == null || q.ValidTo >= qstBis));
+            persons.Add(new XElement(Sd + "Person", particulars, works, salaries, fakSalaries,
                 VersicherungSalaries(e, x.EmployeeId, Zeit),
                 TaxSalaries(rowsByEmp[x.EmployeeId].OrderBy(r => r.Month).Select(r => r.SlipJson), adresseAm,
-                    Zeit(rowsByEmp[x.EmployeeId].Min(r => r.Month), rowsByEmp[x.EmployeeId].Max(r => r.Month)))));
+                    Zeit(rowsByEmp[x.EmployeeId].Min(r => r.Month), rowsByEmp[x.EmployeeId].Max(r => r.Month)),
+                    wirkung, qstAmEnde)));
         }
 
         // Lohnausweis einer Person (Richtlinien Kapitel 9): adressiert an den Wohnkanton, im Ausland EX.
-        XElement TaxSalaries(IEnumerable<string?> lohnzettel, PersonAdresseAm adresse, (DateTime Von, DateTime Bis) periode)
+        XElement TaxSalaries(IEnumerable<string?> lohnzettel, PersonAdresseAm adresse, (DateTime Von, DateTime Bis) periode,
+            LohnausweisAngaben.Wirkung angaben, bool qstAmEnde)
         {
             var a = ElmLohnausweisJahr.Rechne(lohnzettel, c => lpByCode.TryGetValue(c, out var l) ? (l.LohnausweisCode, l.Bezeichnung) : (null, null));
             var land = (adresse.Country ?? "").Trim().ToUpperInvariant();
@@ -440,6 +479,29 @@ public class ElmAnnualDeclarationBuilder
             var pu = ElmLohnausweisJahr.Feld.SpesenPauschalUebrige;
             var ef = a.Von(ElmLohnausweisJahr.Feld.SpesenEffektiv);
             var wb = a.Von(ElmLohnausweisJahr.Feld.Weiterbildung);
+            // Reglement oder RZ 52: effektive Spesen stehen nicht auf dem Lohnausweis (Quality Tool 2024-11: TF16 Aebi).
+            if (angaben.Spesenreglement != null || angaben.Rz52) ef = 0m;
+            XElement Grant(string name, LohnausweisAngaben.Grant g) => new(Sd + name,
+                new XElement(Sd + "Allowed", g.Datum.ToString("yyyy-MM-dd")), new XElement(Sd + "Canton", g.Kanton));
+            XElement? regel = angaben.Spesenreglement is { } sr
+                ? new XElement(Sd + "ChargesRule", Grant("WithRegulation", sr))
+                : angaben.Rz52 ? new XElement(Sd + "ChargesRule", new XElement(Sd + "Guidance")) : null;
+            XElement? Kreuz(string name, bool an) => an ? new XElement(Sd + name) : null;
+            var gruende = new[]
+            {
+                Kreuz("BlockedOptions", angaben.Gesperrt), Kreuz("UnquotedOptions", angaben.NichtKotiert),
+                Kreuz("DeferredBenefitsStaffShares", angaben.Anwartschaft), Kreuz("FictitiousStaffShare", angaben.Unecht),
+            }.Where(k => k != null).ToList();
+            var qstBemerkung = qstAmEnde || a.Quellensteuer != 0m;
+            var bemerkungen = new XElement(Sd + "StandardRemark",
+                Kreuz("ChildAllowancePerAHV-AVS", angaben.KinderzulageAhv),
+                angaben.Umzugskosten is decimal uk ? Betrag("RelocationCosts", uk) : null,
+                angaben.Verkehrswert is { } vw ? Grant("StaffShareMarketValue", vw) : null,
+                gruende.Count > 0 ? new XElement(Sd + "StaffShareWithoutTaxableIncome", gruende) : null,
+                Kreuz("CompanyCarClarify", angaben.WagenAbklaeren),
+                Kreuz("MinimalEmployeeCarPartPercentage", angaben.WagenMinimal),
+                Kreuz("TaxAtSourcePeriodForObjection", qstBemerkung),
+                angaben.Expat is { } ex ? Grant("ExpatriateRuling", ex) : null);
             XElement? spesen = ef != 0m || pw != 0m || a.Von(pu) != 0m || wb != 0m
                 ? new XElement(Sd + "Charges",
                     ef != 0m ? new XElement(Sd + "Effective", Betrag("TravelFoodAccommodation", ef)) : null,
@@ -451,6 +513,8 @@ public class ElmAnnualDeclarationBuilder
                 new XElement(Sd + "DocID", Guid.NewGuid().ToString()),
                 new XElement(Sd + "CreationDate", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff")),
                 new XElement(Sd + "Period", new XElement(Ep + "from", periode.Von.ToString("yyyy-MM-dd")), new XElement(Ep + "until", periode.Bis.ToString("yyyy-MM-dd"))),
+                Kreuz("FreeTransport", angaben.BoxF),
+                Kreuz("CanteenLunchCheck", angaben.BoxG),
                 WennBetrag("Income", a.Von(ElmLohnausweisJahr.Feld.Lohn)),
                 fringe,
                 MitText("SporadicBenefits", ElmLohnausweisJahr.Feld.Unregelmaessig),
@@ -460,10 +524,14 @@ public class ElmAnnualDeclarationBuilder
                 MitText("OtherBenefits", ElmLohnausweisJahr.Feld.Uebrige),
                 Betrag("GrossIncome", a.Brutto),
                 WennBetrag("AHV-ALV-NBUV-AVS-AC-AANP-Contribution", a.Beitraege),
-                a.Bvg != 0m ? new XElement(Sd + "BVG-LPP-Contribution", Betrag("Regular", a.Bvg)) : null,
+                a.Bvg != 0m || a.BvgEinkauf != 0m
+                    ? new XElement(Sd + "BVG-LPP-Contribution", WennBetrag("Regular", a.Bvg), WennBetrag("Purchase", a.BvgEinkauf)) : null,
                 Betrag("NetIncome", a.Netto),
                 WennBetrag("DeductionAtSource", a.Quellensteuer),
-                spesen));
+                regel,
+                spesen,
+                string.IsNullOrWhiteSpace(angaben.Ziffer14) ? null : new XElement(Sd + "OtherFringeBenefits", angaben.Ziffer14),
+                bemerkungen.HasElements ? bemerkungen : null));
         }
 
         // UVG-, UVGZ- und KTG-Salaries einer Person: je Beitragsdauer und Code (ElmVersicherungJahreslohn).
@@ -758,7 +826,7 @@ public class ElmAnnualDeclarationBuilder
                 new XElement(Sd + "Total-AHV-AVS-Incomes", Amt(totalAhv)),
                 new XElement(Sd + "Total-AHV-AVS-Open", Amt(totalAhvFrei)),
                 new XElement(Sd + "Total-ALV-AC-Incomes", Amt(totalAlv)),
-                new XElement(Sd + "Total-ALVZ-ACS-Incomes", "0.00"),
+                new XElement(Sd + "Total-ALVZ-ACS-Incomes", Amt(totalAlvz)),
                 new XElement(Sd + "Total-ALV-AC-Open", Amt(totalAlvFrei)))
         };
         salaryTotals.AddRange(faks.Select(f => ElmFakAdressierung.Totals(f,

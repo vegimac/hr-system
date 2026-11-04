@@ -46,4 +46,14 @@ public class ElmLohnausweisJahrTests
         Assert.Equal(18848m, a.Netto);
         Assert.Equal(50m, a.Quellensteuer);    // 100 − 50 Rückerstattung
     }
+
+    [Fact]
+    public void Lohnausfall_KA_zaehlt_nicht_zum_Brutto_und_uebernommener_BVG_Anteil_wird_abgezogen()
+    {
+        var slip = "{\"lohnLines\":[{\"code\":\"1005\",\"betrag\":1000},{\"code\":\"2065\",\"betrag\":3000},{\"code\":\"1972\",\"betrag\":100}]}";
+        var a = ElmLohnausweisJahr.Rechne(new[] { slip }, c => c == "1972" ? ("T", "BVG") : ("I", c));
+        Assert.Equal(1100m, a.Brutto);
+        Assert.Equal(100m, a.Bvg);
+        Assert.Equal(1000m, a.Netto);
+    }
 }

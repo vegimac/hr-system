@@ -20,6 +20,7 @@ public static class ElmLohnausweisJahr
         public Dictionary<Feld, decimal> Betrag { get; } = new();
         public Dictionary<Feld, List<string>> Texte { get; } = new();
         public decimal Beitraege, Bvg, Quellensteuer;
+        public decimal BvgEinkauf;
 
         public decimal Von(Feld f) => Betrag.TryGetValue(f, out var v) ? v : 0m;
         public string TextVon(Feld f) => Texte.TryGetValue(f, out var t) ? string.Join(", ", t) : "";
@@ -28,7 +29,7 @@ public static class ElmLohnausweisJahr
         public decimal Brutto => Von(Feld.Lohn) + Von(Feld.Verpflegung) + Von(Feld.Geschaeftswagen) + Von(Feld.Nebenleistung)
             + Von(Feld.Unregelmaessig) + Von(Feld.Kapital) + Von(Feld.Beteiligung) + Von(Feld.Verwaltungsrat) + Von(Feld.Uebrige);
 
-        public decimal Netto => Brutto - Beitraege - Bvg;
+        public decimal Netto => Brutto - Beitraege - Bvg - BvgEinkauf;
     }
 
     /// <summary>Lohnausweis-Feld einer Lohnzeile.</summary>
@@ -43,6 +44,7 @@ public static class ElmLohnausweisJahr
             case "1500": return Feld.Verwaltungsrat;
             case "1980": return Feld.Weiterbildung;
             case "3034": case "3001": return Feld.Unregelmaessig;
+            case "2065": return Feld.Keine; // Richtlinien 8.7.2.5: zählt für AHV/UVG, aber nicht zum Bruttolohn
             case "6000": return Feld.SpesenEffektiv;
             case "6050": return Feld.SpesenPauschalWagen;
             case "6070": return Feld.SpesenPauschalUebrige;
@@ -79,6 +81,9 @@ public static class ElmLohnausweisJahr
                     var feld = FeldFuer(code, la);
                     if (feld == Feld.Keine) continue;
                     s.Betrag[feld] = s.Von(feld) + betrag;
+                    // Richtlinien Tabelle 9.4: in Ziffer 7 und bei Ziffer 10 wieder abgezogen (Referenz TF01 Herz).
+                    if (code == "1972") s.Bvg += betrag;
+                    if (code == "1973") s.BvgEinkauf += betrag;
                     if (!string.IsNullOrWhiteSpace(name))
                     {
                         if (!s.Texte.TryGetValue(feld, out var t)) s.Texte[feld] = t = new List<string>();

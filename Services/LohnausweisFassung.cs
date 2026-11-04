@@ -40,6 +40,16 @@ public static class LohnausweisFassung
         return null;
     }
 
+    /// <summary>Profil mit den Lohnausweis-Angaben, die im Jahr galten: ohne Fassung das Profil selbst.</summary>
+    public static CompanyProfile ProfilFuerJahr(CompanyProfile company, IEnumerable<CompanyLohnausweis> fassungen, int jahr)
+    {
+        var fassung = FuerJahr(fassungen, jahr, x => x.GueltigAb, x => x.GueltigBis);
+        if (fassung == null) return company;
+        var profil = new CompanyProfile { Id = company.Id, CompanyName = company.CompanyName, BranchName = company.BranchName };
+        AufProfil(profil, fassung);
+        return profil;
+    }
+
     public static void AufProfil(CompanyProfile ziel, CompanyLohnausweis quelle)
     {
         ziel.LohnausweisBoxFFreierTransport = quelle.BoxF;
