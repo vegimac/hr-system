@@ -44,12 +44,14 @@ public class ElmUebermittlungService
     private readonly ElmMonthlyDeclarationBuilder _monat;
     private readonly ElmAnnualDeclarationBuilder _jahr;
     private readonly ElmGrenzgaengerJahresBuilder _grenz;
+    private readonly ElmEmaBuilder _ema;
     private readonly ElmEinstellungen _einst;
+    private int _emaFragenOffen;
     private readonly ElmXmlValidator _validator;
 
     public ElmUebermittlungService(ElmTransmitterClient client, ElmZertifikatStore store,
         ElmMonthlyDeclarationBuilder monat, ElmAnnualDeclarationBuilder jahr,
-        ElmGrenzgaengerJahresBuilder grenz,
+        ElmGrenzgaengerJahresBuilder grenz, ElmEmaBuilder ema,
         ElmEinstellungen einstellungen, ElmXmlValidator validator)
     {
         _client = client;
@@ -57,6 +59,7 @@ public class ElmUebermittlungService
         _monat = monat;
         _jahr = jahr;
         _grenz = grenz;
+        _ema = ema;
         _einst = einstellungen;
         _validator = validator;
     }
@@ -118,6 +121,21 @@ public class ElmUebermittlungService
             var r = await _jahr.BuildAhvAsync(jahr, companyProfileId, ct, monat);
             return (r.Xml, monat is >= 1 and < 12 ? $"Jahresmeldung AHV {jahr} bis {monat:00}" : $"Jahresmeldung AHV {jahr}", r.Warnungen, r.XsdFehler);
         }
+        if (art == "prospective")
+        {
+            var p = await _ema.BuildProspectiveAsync(jahr, companyProfileId, ct);
+            return (p.Xml, $"Voraussichtliche BVG-Jahresmeldung {jahr}", p.Warnungen, p.XsdFehler);
+        }
+        if (art == "ema")
+        {
+            if (monat is null or < 1 or > 12)
+                throw new InvalidOperationException("Für die EMA-Meldung Monat 1–12 angeben.");
+            var e = await _ema.BuildAsync(jahr, monat.Value, companyProfileId, ct);
+            var offen = e.Ereignisse.Count(z => z.FrageOffen);
+            // Nicht ins XSD-Ergebnis mischen: Die Frage verhindert das Senden, das Schema stimmt.
+            _emaFragenOffen = offen;
+            return (e.Xml, $"EMA {monat:00}.{jahr}", e.Warnungen, e.XsdFehler);
+        }
         if (art is ElmGrenzgaengerJahresBuilder.ArtItalien or ElmGrenzgaengerJahresBuilder.ArtFrankreich
             or ElmGrenzgaengerJahresBuilder.ArtSfn)
         {
@@ -146,6 +164,10 @@ public class ElmUebermittlungService
             return new Ergebnis(false, "Die Meldung entspricht nicht dem ELM-Schema und wurde NICHT gesendet: "
                 + string.Join(" · ", xsd.Take(3)), null, null) { Warnungen = warn };
 
+        if (art == "ema" && _emaFragenOffen > 0)
+            return new Ergebnis(false, $"{_emaFragenOffen} Frage(n) zur 100-%-Arbeitsfähigkeit sind noch offen (RL 8.6.8.2). "
+                + "Die Meldung wurde NICHT gesendet.", null, null) { Warnungen = warn };
+
         var plausi = ElmPlausibilitaet.Pruefe(XDocument.Parse(xml).Root!, Periodenende(art, o.Jahr, o.Monat));
         if (plausi.Count > 0)
             return new Ergebnis(false, $"Plausibilitätsprüfung: {plausi.Count} Verstoss/Verstösse gegen die Plausibilitätsregeln — "
@@ -162,12 +184,13 @@ public class ElmUebermittlungService
         if (gewaehlt.Count == 0)
             return new Ergebnis(false, "Die Meldung hat keinen Adressaten.", null, null);
 
-        var s = await SendeAsync(url, anfrage, ElmMeldungAnzeige.IstJahresSoap(art) ? "declare-annual" : "declare-monthly",
+        var s = await SendeAsync(url, anfrage, art == "ema" ? "notify-changes" : ElmMeldungAnzeige.IstJahresSoap(art) ? "declare-annual" : "declare-monthly",
             o.DoppeltSignieren, stand, requestId, ct);
         warn.AddRange(s.Warnungen);
 
         var jobKey = LiesStatus(s.Body).JobKey;
-        if (s.Abbruch != null || jobKey == null)
+        // EMA ist synchron (RL 3.2.6): kein JobKey, kein GetStatus, die Antwort nennt schon jeden Empfänger.
+        if (s.Abbruch != null || (jobKey == null && art != "ema"))
         {
             _store.SpeichereUebermittlungen(stand);
             return new Ergebnis(false, s.Abbruch ?? "Antwort ohne JobKey — Antwort-XML prüfen.", null, s.Call)
@@ -189,7 +212,8 @@ public class ElmUebermittlungService
             Firmenname = vorlage.Firmenname,
             Url = url,
             Jahr = o.Jahr,
-            Monat = art == "monthly" ? o.Monat : null,
+            Monat = art is "monthly" or "ema" ? o.Monat : null,
+            JobFinished = art == "ema",
             CompanyProfileId = o.CompanyProfileId is int cp && cp > 0 ? cp : null,
             Adressaten = gewaehlt.Select(a => new ElmVorgangAdressat
             {
@@ -199,6 +223,20 @@ public class ElmUebermittlungService
                 Verarbeiten = a.Verarbeiten,
             }).ToList(),
         };
+        if (art == "ema")
+        {
+            foreach (var n in LiesStatus(s.Body).Adressaten)
+            {
+                var a = v.Adressaten.FirstOrDefault(x => x.AddresseeId == n.AddresseeId)
+                     ?? v.Adressaten.FirstOrDefault(x => x.Identification == n.Identification);
+                if (a != null) UebernehmeStatus(a, n);
+            }
+            var text = Zusammenfassung(v, true);
+            v.Protokoll.Add(Zeile("notify", text, requestId, s.Call, s.Kopf.ResponseId));
+            stand.Vorgaenge.Insert(0, v);
+            _store.SpeichereUebermittlungen(stand);
+            return new Ergebnis(!v.Adressaten.Any(a => a.Zustand == "Error"), text, v, s.Call) { Warnungen = warn, Hinweise = s.Hinweise };
+        }
         v.Protokoll.Add(Zeile("declare",
             $"Gesendet an {string.Join(", ", gewaehlt.Select(a => a.Identification + (a.Verarbeiten ? "" : " (abgewählt)")))} — JobKey {jobKey}",
             requestId, s.Call, s.Kopf.ResponseId));
@@ -307,7 +345,7 @@ public class ElmUebermittlungService
             throw new InvalidOperationException(a.Zustand == "Ignored"
                 ? "Dieser Adressat wurde abgewählt (ProcessByDistributor=false) — es gibt keinen Fall zum Synchronisieren."
                 : "Noch kein Fall für diesen Adressaten — zuerst «Status abfragen», bis er erfolgreich ist.");
-        if (v.Art != "subscribe" && (string.IsNullOrEmpty(a.Key) || string.IsNullOrEmpty(a.Password)))
+        if (v.Art is not ("subscribe" or "ema") && (string.IsNullOrEmpty(a.Key) || string.IsNullOrEmpty(a.Password)))
             throw new InvalidOperationException("Credentials fehlen — sie kommen mit der erfolgreichen Statusabfrage.");
         var quittieren = ZuQuittieren(a);
         if (a.State is "Finished" or "closed" && quittieren.Count == 0 && (antworten?.Count ?? 0) == 0 && !abmelden)
@@ -332,13 +370,15 @@ public class ElmUebermittlungService
         var kontext = Kontext(v.Firmenname, requestId);
         var anfrage = v.Art == "subscribe"
             ? BaueSynchronizeSubscribe(v, a, quittieren, abmelden, kontext)
+            : v.Art == "ema" ? BaueSynchronizeNotifyChanges(v, a, quittieren, kontext)
             : BaueSynchronizeDeclare(v, a, quittieren, kontext);
         foreach (var g in a.Ausstehend) g.Gesendet++;
         a.LetzteSynchronisierung = DateTime.Now;
         var s = await SendeAsync(url, anfrage, v.Art switch
         {
             "subscribe" => "sync-subscribe",
-            "annual" => "sync-annual",
+            "annual" or "prospective" => "sync-annual",
+            "ema" => "sync-ema",
             _ => "sync-monthly",
         }, v.DoppeltSigniert, stand, requestId, ct);
         warn.AddRange(s.Warnungen);

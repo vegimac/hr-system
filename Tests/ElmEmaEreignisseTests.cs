@@ -251,6 +251,62 @@ public class ElmEmaEreignisseTests
     public void Art_des_Endes_wird_geprueft(string? art, bool gueltig)
         => Assert.Equal(gueltig, HrSystem.Models.Employment.EndeArtGueltig(art));
 
+    private const string Melde = """
+        <r><Job><Addressee addresseeID="#a"><AddresseeIdentification>003.000</AddresseeIdentification></Addressee></Job>
+        <Person><EmployeeNumber>7</EmployeeNumber><Work workID="#w"><EntryDate>2025-01-01</EntryDate></Work>
+        <N addresseeIDRef="#a" workIDRef="#w"><Code oldCode="22">11</Code></N></Person></r>
+        """;
+
+    [Fact]
+    public void Verweise_zaehlen_nach_ihrem_Ziel_nicht_nach_dem_Namen()
+    {
+        var andereKennungen = Melde.Replace("#a", "#AHV_KK").Replace("#w", "#work_TF07_0");
+        Assert.Empty(ElmEmaPruefung.Verweise(Melde, andereKennungen));
+        Assert.Single(ElmEmaPruefung.Verweise(Melde, Melde.Replace("003.000", "002.000")));
+        Assert.Single(ElmEmaPruefung.Verweise(Melde, Melde.Replace("2025-01-01", "2025-05-01")));
+        Assert.Single(ElmEmaPruefung.Verweise(Melde, Melde.Replace("oldCode=\"22\"", "")));
+    }
+
+    [Fact]
+    public void Verweise_der_Referenz_stimmen_mit_sich_selbst()
+    {
+        var xml = File.ReadAllText(Datei("RefXML_2025-10_EMA.xml"));
+        Assert.Empty(ElmEmaPruefung.Verweise(xml, xml));
+    }
+
+    [Fact]
+    public void Ema_ist_Meldung_ohne_Ersatz_und_mit_Monat()
+    {
+        Assert.Equal("ema", ElmMeldungAnzeige.NormalisiereArt("ema"));
+        Assert.Equal("prospective", ElmMeldungAnzeige.NormalisiereArt("prospective"));
+        Assert.False(ElmMeldungAnzeige.IstJahresSoap("ema"));
+        Assert.True(ElmMeldungAnzeige.IstJahresSoap("prospective"));
+        var v = new ElmVorgang { Art = "ema", Jahr = 2025, Monat = 9, JobFinished = true };
+        v.Adressaten.Add(new ElmVorgangAdressat { Zustand = "Success", FallId = "n" });
+        Assert.False(ElmMeldungAnzeige.Ersetzbar(v));
+        Assert.Equal((2025, 9), ElmMeldungAnzeige.Periode(v));
+        Assert.Equal("EMA 09.2025", ElmMeldungAnzeige.Titel(v));
+    }
+
+    [Fact]
+    public void Antwort_liefert_NotificationID()
+    {
+        var antwort = XElement.Parse(File.ReadAllText(Path.Combine(TestmandantDaten.RepoRoot, "docs", "swissdec", "Transmitter_Richtlinien", "samples", "NotifyChangesResponse.xml")));
+        var a = Assert.Single(ElmUebermittlungXml.LiesStatus(antwort).Adressaten);
+        Assert.Equal(("Success", "NotificationID"), (a.Zustand, a.FallId));
+    }
+
+    [Fact]
+    public void Synchronize_entspricht_dem_Schema_ohne_Credentials()
+    {
+        var v = new ElmVorgang { Art = "ema", Uid = "CHE-999.999.996", Firmenname = "Muster AG", TestCase = true };
+        var a = new ElmVorgangAdressat { Identification = "L1200", Domain = "BVG-LPP", FallId = "n1" };
+        var kontext = ElmGemeinsam.RequestContext("Muster AG", DateTime.Now);
+        var xml = ElmUebermittlungXml.BaueSynchronizeNotifyChanges(v, a, Array.Empty<string>(), kontext);
+        Assert.Equal("SynchronizeNotifyChanges", xml.Name.LocalName);
+        Assert.Empty(new ElmXmlValidator().Validate(xml.ToString()));
+    }
+
     [Fact]
     public void Monatslohn_aus_dem_Vertrag_nicht_anteilig()
     {

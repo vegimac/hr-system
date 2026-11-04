@@ -4252,8 +4252,18 @@
                         <div id="emaPreview"></div>
                     </div>
                     <div class="card" style="padding:20px;max-width:980px;margin-top:14px">
+                        <h3 style="margin:0 0 6px">Meldung senden</h3>
+                        <p class="page-sub" style="margin:0 0 12px">Sammelmeldung der Eintritte, Mutationen und Austritte eines Monats, oder die voraussichtliche BVG-Jahresmeldung. Vor dem Senden kommt die Vorschau mit allen Empfängern.</p>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;align-items:end">
+                            <label class="f-label">Monat (ein Tag darin) oder Jahr der Jahresmeldung<input id="emaSendTag" class="f-input" type="date"></label>
+                            <button type="button" class="btn btn-primary" onclick="emaSenden('ema')">EMA des Monats senden</button>
+                            <button type="button" class="btn btn-outline" onclick="emaSenden('prospective')">Voraussichtliche Jahresmeldung senden</button>
+                        </div>
+                        <div id="emaSendErgebnis" style="margin-top:12px;font-size:12.5px"></div>
+                    </div>
+                    <div class="card" style="padding:20px;max-width:980px;margin-top:14px">
                         <h3 style="margin:0 0 6px">EMA-Meldung gegen die Referenz prüfen</h3>
-                        <p class="page-sub" style="margin:0 0 12px">Alle RefXML_…_EMA.xml aus dem Ordner SWISSCEC/RefXML wählen. Die Dateien werden nur gelesen, es wird nichts gespeichert und nichts gesendet.</p>
+                        <p class="page-sub" style="margin:0 0 12px">Alle RefXML_…_EMA.xml und RefXML_…_PROSPECTIVE.xml aus dem Ordner SWISSCEC/RefXML wählen. Die Dateien werden nur gelesen, es wird nichts gespeichert und nichts gesendet.</p>
                         <input type="file" id="emaRefDateien" accept=".xml" multiple style="display:none" onchange="emaRefPruefen(this)">
                         <button type="button" class="btn btn-outline" onclick="document.getElementById('emaRefDateien').click()">Dateien wählen und prüfen</button>
                         <div id="emaRefErgebnis" style="margin-top:12px"></div>
@@ -13344,7 +13354,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/famz-anmeldung.js?v=20261022a"></script>
 <script type="text/plain" data-modul="js/famz-gastrosocial.js?v=20261011p"></script>
 <script type="text/plain" data-modul="js/akis-meldung.js?v=20261030f"></script>
-<script type="text/plain" data-modul="js/ema-aufgaben.js?v=20261104c"></script>
+<script type="text/plain" data-modul="js/ema-aufgaben.js?v=20261105a"></script>
 <script type="text/plain" data-modul="js/manager-dienstplan.js?v=20261013b"></script>
 <script type="text/plain" data-modul="js/organigramm.js?v=20261102b"></script>
 <script type="text/plain" data-modul="js/ferien-planer.js?v=20260814b"></script>

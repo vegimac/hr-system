@@ -65,38 +65,56 @@ public class ElmEmaController : HrControllerBase
     public async Task<IActionResult> Pruefen([FromForm] List<IFormFile> dateien, CancellationToken ct)
     {
         var quellen = new SortedDictionary<DateOnly, (string Name, string Xml)>();
+        var prospective = new SortedDictionary<int, (string Name, string Xml)>();
         foreach (var f in dateien ?? new List<IFormFile>())
         {
             var name = Path.GetFileName(f.FileName ?? "");
-            var m = Regex.Match(name, @"(\d{4})-(\d{2})_EMA");
+            var m = Regex.Match(name, @"(\d{4})-(\d{2})_(EMA|PROSPECTIVE)");
             if (!m.Success) continue;
             using var leser = new StreamReader(f.OpenReadStream());
-            quellen[new DateOnly(int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value), 1)] = (name, await leser.ReadToEndAsync(ct));
+            var xml = await leser.ReadToEndAsync(ct);
+            if (m.Groups[3].Value == "EMA") quellen[new DateOnly(int.Parse(m.Groups[1].Value), int.Parse(m.Groups[2].Value), 1)] = (name, xml);
+            else prospective[int.Parse(m.Groups[1].Value)] = (name, xml);
         }
-        if (quellen.Count == 0)
-            return BadRequest(new { error = "KEINE_REFERENZ", message = "Keine Datei RefXML_JJJJ-MM_EMA.xml dabei." });
+        if (quellen.Count == 0 && prospective.Count == 0)
+            return BadRequest(new { error = "KEINE_REFERENZ", message = "Keine Datei RefXML_JJJJ-MM_EMA.xml oder _PROSPECTIVE.xml dabei." });
 
         var monate = new List<object>();
         var bericht = new StringBuilder();
-        for (var m = quellen.Keys.First(); m <= quellen.Keys.Last(); m = m.AddMonths(1))
+        object Zeile(string monat, bool referenz, int anzahl, ElmEmaBuilder.Ergebnis r, (string Name, string Xml)? q)
         {
-            var r = await _builder.BuildAsync(m.Year, m.Month, null, ct);
             int? geprueft = null, offen = null;
-            if (quellen.TryGetValue(m, out var q) && r.Xml.Length > 0)
+            var verweise = new List<string>();
+            if (q is { } ref1 && r.Xml.Length > 0)
             {
-                var e = ElmXmlVergleich.Vergleiche(r.Xml, q.Xml);
-                (geprueft, offen) = (e.Geprueft, e.Offen);
-                bericht.AppendLine(ElmXmlVergleich.Bericht(e, $"EMA {m:yyyy-MM}", q.Name));
+                var e = ElmXmlVergleich.Vergleiche(r.Xml, ref1.Xml);
+                verweise = ElmEmaPruefung.Verweise(r.Xml, ref1.Xml);
+                (geprueft, offen) = (e.Geprueft, e.Offen + verweise.Count);
+                bericht.AppendLine(ElmXmlVergleich.Bericht(e, $"{monat}", ref1.Name));
+                foreach (var v in verweise) bericht.AppendLine("- Verweis: " + v);
+                bericht.AppendLine();
             }
-            monate.Add(new
+            return new
             {
-                monat = m.ToString("yyyy-MM"), referenz = quellen.ContainsKey(m), ereignisse = r.Ereignisse.Count,
-                geprueft, offen, xsdFehler = r.XsdFehler, warnungen = r.Warnungen,
+                monat, referenz, ereignisse = anzahl, geprueft, offen, xsdFehler = r.XsdFehler,
+                warnungen = r.Warnungen.Concat(verweise.Take(5)).ToList(),
                 fragen = r.Ereignisse.Where(z => z.FrageOffen).Select(z => new
                 {
-                    z.EmployeeId, z.Name, z.Ereignis.Art, validAsOf = z.Ereignis.ValidAsOf.ToString("yyyy-MM-dd"), monat = m.ToString("yyyy-MM-dd"),
+                    z.EmployeeId, z.Name, z.Ereignis.Art, validAsOf = z.Ereignis.ValidAsOf.ToString("yyyy-MM-dd"), monat = z.Ereignis.Monat.ToString("yyyy-MM-dd"),
                 }),
-            });
+            };
+        }
+        if (quellen.Count > 0)
+            for (var m = quellen.Keys.First(); m <= quellen.Keys.Last(); m = m.AddMonths(1))
+            {
+                var r = await _builder.BuildAsync(m.Year, m.Month, null, ct);
+                monate.Add(Zeile(m.ToString("yyyy-MM"), quellen.ContainsKey(m), r.Ereignisse.Count, r, quellen.TryGetValue(m, out var q) ? q : null));
+            }
+        foreach (var (jahr, q) in prospective)
+        {
+            var r = await _builder.BuildProspectiveAsync(jahr, null, ct);
+            var anzahl = r.Xml.Length == 0 ? 0 : System.Xml.Linq.XDocument.Parse(r.Xml).Descendants().Count(x => x.Name.LocalName == "BVG-LPP-Salary");
+            monate.Add(Zeile($"Prospective {jahr}", true, anzahl, r, q));
         }
         return Ok(new { monate, bericht = bericht.ToString() });
     }

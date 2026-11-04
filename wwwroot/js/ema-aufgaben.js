@@ -204,3 +204,35 @@ async function emaManLoeschen(id) {
     await fetch('/api/elm/ema/manuell/' + id, { method: 'DELETE', headers: ah() });
     await emaManListe();
 }
+
+// EMA NotifyChanges und voraussichtliche Jahresmeldung senden. Nur auf ausdrückliche Bestätigung.
+async function emaSenden(art) {
+    const el = document.getElementById('emaSendErgebnis');
+    const tag = document.getElementById('emaSendTag').value;
+    if (!tag) { el.textContent = 'Bitte zuerst ein Datum wählen.'; return; }
+    const jahr = Number(tag.slice(0, 4));
+    const monat = art === 'ema' ? Number(tag.slice(5, 7)) : null;
+    el.textContent = 'Vorschau wird erstellt…';
+    try {
+        const q = new URLSearchParams({ art, jahr });
+        if (monat) q.set('monat', monat);
+        const res = await fetch('/api/elm/meldungen/vorschau?' + q, { headers: ah(), cache: 'no-store' });
+        const v = await res.json().catch(() => ({}));
+        if (!res.ok) { el.textContent = v.message || 'Vorschau fehlgeschlagen.'; return; }
+        const hinweise = [...(v.technisch || []), ...(v.fehler || []), ...(v.warnungen || [])];
+        if (!v.empfaenger?.length) { el.textContent = hinweise.join(' · ') || 'Keine Meldung.'; return; }
+        el.innerHTML = hinweise.map(emaRefText).join('<br>');
+        if (v.sendenGesperrt) { el.textContent = v.sendenGesperrt; return; }
+        const an = v.empfaenger.map(e => e.name || e.identification).join(', ');
+        if (!await liquidConfirm(`${v.titel}\nAn: ${an}`, { title: 'Meldung an Swissdec senden?', yesLabel: 'Ja, senden', noLabel: 'Abbrechen' })) {
+            el.textContent = 'Nicht gesendet.';
+            return;
+        }
+        el.textContent = 'Wird gesendet…';
+        const s = await fetch('/api/elm/meldungen/senden', { method: 'POST', headers: ah(), body: JSON.stringify({ art, jahr, monat }) });
+        const d = await s.json().catch(() => ({}));
+        el.textContent = d.meldung || d.message || 'Senden fehlgeschlagen.';
+    } catch (_) {
+        el.textContent = 'Verbindungsfehler.';
+    }
+}

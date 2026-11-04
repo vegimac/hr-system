@@ -72,12 +72,12 @@ public class ElmMeldungenService
             if (!ElmMeldungAnzeige.Ersetzbar(alt))
                 throw new InvalidOperationException("Diese Meldung lässt sich (noch) nicht ersetzen — sie wurde von keinem Empfänger angenommen.");
             var (j, m) = ElmMeldungAnzeige.Periode(alt);
-            if (j != jahr || (alt.Art == "monthly" && m != monat) || alt.Art != art)
+            if (j != jahr || (alt.Art is "monthly" or "ema" && m != monat) || alt.Art != art)
                 throw new InvalidOperationException("Die Ersatzmeldung muss dieselbe Meldung (Art und Zeitraum) betreffen.");
             substitution = ElmMeldungAnzeige.DeclarationId(alt);
         }
         return await _dienst.DeclareAsync(ziel.Url, new ElmUebermittlungService.DeclareOptionen(
-            art, jahr, art is "monthly" or "annual" ? monat : null,
+            art, jahr, art is "monthly" or "annual" or "ema" ? monat : null,
             TestCase: testmeldung ?? ziel.IstTest, Substitution: substitution, Adressaten: adressaten,
             DoppeltSignieren: true, FreigabePortal: freigabePortal, CompanyProfileId: companyProfileId), ct);
     }

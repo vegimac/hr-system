@@ -204,28 +204,7 @@ public class ElmEmaBuilder
         var bvgE = ElmAnnualDeclarationBuilder.WaehleEmpfaenger(empf.Where(x => x.Art == "BVG"), monatsEndeTag, ausgewaehlt);
         var st = await _db.ElmStammdaten.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
 
-        var modelle = stamm.Hauptsitz == null ? new List<Arbeitszeitmodell>()
-            : await _db.Arbeitszeitmodelle.AsNoTracking().Where(m => m.HauptsitzId == stamm.Hauptsitz.Id && m.IsActive).OrderBy(m => m.Id).ToListAsync(ct);
-        var ids = geladen.Stand.Keys.ToList();
-        var zuordnungen = modelle.Count == 0 ? new List<EmployeeArbeitszeitmodell>()
-            : await _db.EmployeeArbeitszeitmodelle.AsNoTracking().Where(z => ids.Contains(z.EmployeeId)).ToListAsync(ct);
-        var plz = geladen.Mitarbeitende.Select(e => (e.ZipCode ?? "").Trim())
-            .Concat(geladen.Wohnort.Select(h => (h.Plz ?? "").Trim())).Where(z => z.Length == 4).Distinct().ToList();
-        var orte = await _db.SwissLocations.AsNoTracking().Where(l => plz.Contains(l.Plz4))
-            .Select(l => new { l.Plz4, l.BfsNr, l.Ortschaftsname, l.Gemeindename }).ToListAsync(ct);
-        int? Gemeinde(string? plzRoh, string? ortRoh)
-        {
-            var z = (plzRoh ?? "").Trim();
-            if (z.Length != 4) return null;
-            var o = (ortRoh ?? "").Trim().ToLowerInvariant();
-            var kand = orte.Where(x => x.Plz4 == z).ToList();
-            var best = kand.FirstOrDefault(x => (x.Ortschaftsname ?? "").ToLowerInvariant().StartsWith(o) || (x.Gemeindename ?? "").ToLowerInvariant() == o)?.BfsNr;
-            if (best is > 0) return best;
-            var nrs = kand.Select(x => x.BfsNr).Distinct().ToList();
-            return nrs.Count == 1 ? nrs[0] : null;
-        }
-        var permits = await _db.EmployeePermitHistories.AsNoTracking().Where(h => ids.Contains(h.EmployeeId)).ToListAsync(ct);
-        var permitTypen = await _db.PermitTypes.AsNoTracking().ToDictionaryAsync(p => p.Id, ct);
+        var kopf = await LadeKopfdatenAsync(geladen, ct);
 
         var fakKassen = new Dictionary<string, ElmFakAdressierung.Eintrag>(StringComparer.OrdinalIgnoreCase);
         var personen = new List<XElement>();
@@ -272,21 +251,7 @@ public class ElmEmaBuilder
                 .Where(c => c.EmployeeId == id && c.Art == "BVG" && c.GiltAm(tag))
                 .OrderByDescending(c => c.ValidFrom).Select(c => c.BvgVollArbeitsfaehig).FirstOrDefault();
 
-            // Frühere Anstellungen des Jahres: je eine eigene Work (TF40 Farine _0, _1, _2).
-            var jahrStart = new DateTime(year, 1, 1);
-            var kette = ElmMonthlyDeclarationBuilder.Anstellung(eigene, monatsAnfang, monatsEnde);
-            var vorKetten = new List<(DateTime Start, DateTime Ende)>();
-            if (kette is { } akt && akt.Start > jahrStart)
-            {
-                var vor = akt.Start;
-                while (vor > jahrStart)
-                {
-                    var vk = ElmMonthlyDeclarationBuilder.Anstellung(eigene, jahrStart, vor.AddDays(-1));
-                    if (vk is not { Ende: DateTime vkEnde } || vkEnde >= vor || vkEnde < jahrStart) break;
-                    vorKetten.Insert(0, (vk.Value.Start, vkEnde));
-                    vor = vk.Value.Start;
-                }
-            }
+            var (kopfInhalt, vorKetten) = PersonKopf(e, geladen, kopf, year, monatsEndeTag, warn);
             string WorkVon(E.Ereignis x)
             {
                 var tag = x.ValidAsOf.ToDateTime(TimeOnly.MinValue);
@@ -310,49 +275,13 @@ public class ElmEmaBuilder
                 return k.AddresseeId;
             }
 
-            var zuordnung = zuordnungen.Where(z => z.EmployeeId == e.Id && z.GueltigAb <= monatsEndeTag)
-                .OrderByDescending(z => z.GueltigAb).ThenByDescending(z => z.Id).FirstOrDefault();
-            var modell = (zuordnung != null ? modelle.FirstOrDefault(m => m.Id == zuordnung.ArbeitszeitmodellId) : null) ?? modelle.FirstOrDefault();
-            var emHaupt = eigene.Where(v => v.ContractStartDate <= monatsEnde && (v.ContractEndDate == null || v.ContractEndDate >= monatsAnfang))
-                              .OrderByDescending(v => v.ContractStartDate).FirstOrDefault()
-                          ?? eigene.OrderByDescending(v => v.ContractStartDate).FirstOrDefault();
-            var vollzeit = modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : stamm.Haupt.NormalWeeklyHours ?? 42m;
-
-            var (ziv, zivSeit, _) = ZivilstandHistorieService.Am(geladen.Zivilstand.Where(h => h.EmployeeId == e.Id), monatsEndeTag, e.MaritalStatus, e.MaritalStatusSince);
-            // Ledig ohne Datum: seit Geburt (TF36 Maldini Januar 2025, Eintrag «seit jeher»).
-            if (zivSeit == null && MapCivilStatus(ziv) == "single") zivSeit = DateOnly.FromDateTime(e.DateOfBirth!.Value);
-            var wohnHist = geladen.Wohnort.Where(h => h.EmployeeId == e.Id).ToList();
-            var wohnAm = WohnortHistorieService.Am(wohnHist, monatsEndeTag, e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
-            var adresseAm = new PersonAdresseAm(wohnAm.Strasse, wohnAm.Plz, wohnAm.Ort, wohnAm.Land, wohnAm.KantonCode);
-            var umzug = WohnortHistorieService.UmzugImMonat(wohnHist, monatsEndeTag.AddYears(-1).AddDays(1), monatsEndeTag);
-            PersonAdresseAm? adresseVorher = umzug is { } u ? new PersonAdresseAm(u.Alt.Strasse, u.Alt.Plz, u.Alt.Ort, u.Alt.Land, u.Alt.KantonCode) : null;
-            var permitId = ElmMonthlyDeclarationBuilder.BewilligungAmStichtag(permits.Where(h => h.EmployeeId == e.Id), monatsEndeTag);
-            var permitAmEnde = permitId != null && permitTypen.TryGetValue(permitId.Value, out var pt) ? pt : null;
-
             var persZeilen = ereignisse.OrderBy(x => x.Domaene == E.Ahv ? 0 : x.Domaene == E.Fak ? 1 : 2).ToList();
             var bloecke = E.Bloecke(persZeilen, Adressat, WorkVon, Fit).ToList();
             foreach (var x in persZeilen)
                 zeilen.Add(new Zeile(e.Id, $"{e.FirstName} {e.LastName}".Trim(), e.EmployeeNumber, x,
                     x.Domaene == E.Bvg && x.Art != E.Mutation ? Fit(x) : null, FrageOffen(x)));
 
-            personen.Add(new XElement(Sd + "Person",
-                Particulars(e, warn, Gemeinde(adresseAm.Zip, adresseAm.City), permitAmEnde, ziv, zivSeit, adresseAm, adresseVorher, umzug?.Wegzug,
-                    adresseVorher == null ? null : Gemeinde(adresseVorher.Zip, adresseVorher.City)),
-                vorKetten.Select((vk, i) => new XElement(C + "Work",
-                    new XAttribute("workID", WorkId(e) + "_" + i),
-                    modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
-                    new XElement(C + "WorkingTime", WorkingTime(
-                        eigene.Where(m => m.ContractStartDate <= vk.Ende).OrderByDescending(m => m.ContractStartDate).FirstOrDefault() ?? emHaupt,
-                        vollzeit, zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen, modell?.Wochenlektionen)),
-                    new XElement(C + "EntryDate", vk.Start.ToString("yyyy-MM-dd")),
-                    new XElement(C + "WithdrawalDate", vk.Ende.ToString("yyyy-MM-dd")))),
-                new XElement(C + "Work",
-                    new XAttribute("workID", WorkId(e)),
-                    modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
-                    new XElement(C + "WorkingTime", WorkingTime(emHaupt, vollzeit, zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen, modell?.Wochenlektionen)),
-                    new XElement(C + "EntryDate", (kette?.Start ?? emHaupt?.ContractStartDate ?? e.EntryDate ?? monatsAnfang).ToString("yyyy-MM-dd")),
-                    kette?.Ende is DateTime wd && wd <= monatsEnde ? new XElement(C + "WithdrawalDate", wd.ToString("yyyy-MM-dd")) : null),
-                bloecke));
+            personen.Add(new XElement(Sd + "Person", kopfInhalt, bloecke));
         }
 
         if (personen.Count == 0)
@@ -361,7 +290,7 @@ public class ElmEmaBuilder
             return leer;
         }
         if (ohneFrage.Count > 0)
-            warn.Add($"100-%-Arbeitsfähigkeit noch nicht beantwortet, ohne FullyFitForWork gemeldet (RL 8.6.8.2): {string.Join("; ", ohneFrage.Distinct())}.");
+            warn.Add($"100-%-Arbeitsfähigkeit noch nicht beantwortet, so kann die Meldung nicht gesendet werden (RL 8.6.8.2): {string.Join("; ", ohneFrage.Distinct())}.");
 
         var addressees = new List<XElement>();
         XElement Adr(string id, string? nr) => new(Sdc + "Addressee", new XAttribute("addresseeID", id),
@@ -397,26 +326,8 @@ public class ElmEmaBuilder
                 new XElement(Sd + "GeneralValidAsOf", new DateOnly(year, 1, 1).ToString("yyyy-MM-dd"))));
         }
 
-        // Arbeitsorte wie in der Monatsmeldung (Rückblick, docs/swissdec-abgeleitete-regeln.md Nr. 1).
-        var rueckblick = await (from sn in _db.PayrollSnapshots.AsNoTracking()
-                                join pp in _db.PayrollPerioden.AsNoTracking() on sn.PayrollPeriodeId equals pp.Id
-                                where sn.Status != "STORNIERT" && filialIds.Contains(pp.CompanyProfileId)
-                                      && pp.Year >= year - 1 && pp.Year <= year
-                                select new { pp.CompanyProfileId, pp.Year, pp.Month }).Distinct().ToListAsync(ct);
-        var arbeitsorte = rueckblick.Where(x => (x.Year == year && x.Month == month)
-                || ElmMonthlyDeclarationBuilder.ImArbeitsortRueckblick(x.Year, x.Month, year, month))
-            .Select(x => x.CompanyProfileId).ToHashSet();
-        var arbeitszeit = ElmMonthlyDeclarationBuilder.ArbeitszeitModelle(modelle, zuordnungen, ids, stamm.Haupt.NormalWeeklyHours ?? 42m, warn);
-
-        var kontaktName = (stamm.Hauptsitz?.KontaktName ?? "").Trim();
-        if (kontaktName.Length == 0)
-        {
-            warn.Add("Keine Kontaktperson am Hauptsitz erfasst. Erfassung: System → Hauptsitze → Kontaktperson für Lohnmeldungen.");
-            kontaktName = stamm.Firmenname;
-        }
-        var kontaktMail = (stamm.Hauptsitz?.KontaktEmail ?? "").Trim();
-        var kontaktTel = PersonaldatenPruefung.TelefonFuerSwissdec((stamm.Hauptsitz?.KontaktTelefon ?? "").Trim());
-        var kontaktMobil = PersonaldatenPruefung.TelefonFuerSwissdec((stamm.Hauptsitz?.KontaktMobil ?? "").Trim());
+        var arbeitsorte = await ArbeitsorteAsync(filialIds, year, month, ct);
+        var arbeitszeit = ElmMonthlyDeclarationBuilder.ArbeitszeitModelle(kopf.Modelle, kopf.Zuordnungen, geladen.Stand.Keys, stamm.Haupt.NormalWeeklyHours ?? 42m, warn);
 
         var doc = new XDocument(new XDeclaration("1.0", "UTF-8", null),
             new XElement(Sdcst + "NotifyChanges",
@@ -432,14 +343,224 @@ public class ElmEmaBuilder
                     CompanyDescription(ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn(stamm, arbeitsorte), arbeitszeit),
                     new XElement(Sd + "Staff", personen),
                     new XElement(Sd + "Institutions", institutions),
-                    new XElement(Sd + "ContactPerson",
-                        new XElement(Sd + "Name", kontaktName),
-                        kontaktMail.Length == 0 ? null : new XElement(Sd + "EmailAddress", kontaktMail),
-                        kontaktTel == null ? null : new XElement(Sd + "PhoneNumber", kontaktTel),
-                        kontaktMobil == null ? null : new XElement(Sd + "MobilePhoneNumber", kontaktMobil)))));
+                    new XElement(Sd + "ContactPerson", Kontakt(stamm, warn)))));
 
         var xml = doc.Declaration + Environment.NewLine + doc.ToString();
         return new Ergebnis(xml, zeilen, warn, _validator.Validate(xml));
+    }
+
+    /// <summary>
+    /// Voraussichtliche BVG-Jahresmeldung (YearlyProspective): wer am 1.1. versichert ist, mit der Basis per
+    /// GeneralValidAsOf (RL 8.6.6). Dieselbe Rechnung wie die EMA.
+    /// </summary>
+    public async Task<Ergebnis> BuildProspectiveAsync(int year, int? nurFiliale, CancellationToken ct = default)
+    {
+        var warn = new List<string>();
+        var leer = new Ergebnis("", new(), warn, new());
+        var geladen = await LadeAsync(year, 1, nurFiliale, warn, ct);
+        if (geladen == null) return leer;
+        var stamm = geladen.Stamm;
+        var stichtag = new DateOnly(year, 1, 1);
+        var kopf = await LadeKopfdatenAsync(geladen, ct);
+        var personen = new List<XElement>();
+        foreach (var e in geladen.Mitarbeitende)
+        {
+            if (!geladen.Stand.TryGetValue(e.Id, out var stand)) continue;
+            var ohneMeldung = stand with { Jahresmeldungen = new Dictionary<DateOnly, decimal>() };
+            if (E.BvgPeriodeAm(E.Erkenne(ohneMeldung, geladen.Steuerung), stichtag) is not { } ab) continue;
+            var s = stand.Monate.FirstOrDefault(m => m.Monat == stichtag);
+            if (s == null) continue;
+            var laeufe = stand.Monate.Select(m => new ElmBvgBasis.LohnMonat(m.Monat, m.Lohnarten));
+            var basis = ElmBvgBasis.FuerJahresmeldung(stichtag, s.ManuelleBasis, s.Vertrag, s.Lohnarten, laeufe, ab, geladen.Steuerung);
+            // Der Anwender prüft die Basen und korrigiert sie vor der Übermittlung (RL 8.6.6): Freigegeben geht vor.
+            if (stand.Jahresmeldungen.TryGetValue(stichtag, out var freigegeben))
+            {
+                if (freigegeben != basis)
+                    warn.Add($"{e.FirstName} {e.LastName} ({e.EmployeeNumber}): freigegebene BVG-Basis {Amt(freigegeben)} statt gerechnet {Amt(basis)}.");
+                basis = freigegeben;
+            }
+            var (kopfInhalt, _) = PersonKopf(e, geladen, kopf, year, stichtag.AddMonths(1).AddDays(-1), warn);
+            personen.Add(new XElement(Sd + "Person", kopfInhalt,
+                new XElement(Sd + "BVG-LPP-Salaries",
+                    new XElement(Sd + "BVG-LPP-Salary",
+                        new XAttribute("addresseeIDRef", "#BVG"),
+                        new XAttribute("workIDRef", WorkId(e)),
+                        new XElement(Sd + "BVG-LPP-Code", s.BvgCode),
+                        new XElement(Sd + "BVG-LPP-AnnualBasis", Amt(basis))))));
+        }
+        if (personen.Count == 0)
+        {
+            warn.Add($"Am 01.01.{year} ist niemand im BVG versichert.");
+            return leer;
+        }
+
+        var filialIds = stamm.Filialen.Select(b => b.Id).ToHashSet();
+        var empf = await _db.LohndatenEmpfaengers.AsNoTracking().Include(x => x.Zuordnungen)
+            .Where(x => x.IsActive).OrderBy(x => x.Id).ToListAsync(ct);
+        var bvgE = ElmAnnualDeclarationBuilder.WaehleEmpfaenger(empf.Where(x => x.Art == "BVG"), stichtag, nurFiliale is > 0 ? filialIds : null);
+        if (bvgE == null) warn.Add("Keine Vorsorgeeinrichtung im Empfänger-Katalog: Meldung ohne Adressat.");
+        var zuordnung = bvgE?.Zuordnungen.FirstOrDefault(z => z.GiltAm(stichtag) && filialIds.Contains(z.CompanyProfileId));
+        var arbeitsorte = await ArbeitsorteAsync(filialIds, year, 1, ct);
+        var arbeitszeit = ElmMonthlyDeclarationBuilder.ArbeitszeitModelle(kopf.Modelle, kopf.Zuordnungen, geladen.Stand.Keys, stamm.Haupt.NormalWeeklyHours ?? 42m, warn);
+        var jetzt = DateTime.Now;
+        var doc = new XDocument(new XDeclaration("1.0", "UTF-8", null),
+            new XElement(Sdcst + "DeclareAnnualSalary",
+                new XAttribute(XNamespace.Xmlns + "sdcst", Sdcst),
+                new XAttribute(XNamespace.Xmlns + "sdc", Sdc),
+                new XAttribute(XNamespace.Xmlns + "sd", Sd),
+                new XAttribute(XNamespace.Xmlns + "ep", Ep),
+                new XAttribute(XNamespace.Xmlns + "c", C),
+                RequestContext(stamm.Firmenname, jetzt, _einstellungen),
+                new XElement(Sdc + "Job", new XElement(Sdc + "Addressees",
+                    new XElement(Sdc + "Addressee", new XAttribute("addresseeID", "#BVG"),
+                        new XElement(Ep + "AddresseeIdentification", (bvgE?.Kassennummer ?? "").Trim()),
+                        new XElement(Ep + "ProcessByDistributor", "true")))),
+                new XElement(Sd + "AnnualSalaryDeclaration",
+                    new XAttribute("schemaVersion", "0.0"),
+                    CompanyDescription(ElmMonthlyDeclarationBuilder.NurArbeitsorteMitLohn(stamm, arbeitsorte), arbeitszeit),
+                    new XElement(Sd + "Staff", personen),
+                    new XElement(Sd + "Institutions",
+                        new XElement(Sd + "BVG-LPP", new XAttribute("addresseeIDRef", "#BVG"),
+                            new XElement(Sd + "InsuranceCompanyName", bvgE?.Bezeichnung ?? ""),
+                            new XElement(Sd + "CustomerIdentity", (zuordnung?.Mitgliednummer ?? "").Trim()),
+                            new XElement(Sd + "ContractIdentity", (zuordnung?.Subnummer ?? "").Trim()),
+                            new XElement(Sd + "GeneralValidAsOf", stichtag.ToString("yyyy-MM-dd")))),
+                    new XElement(Sd + "SalaryTotals"),
+                    new XElement(Sd + "SalaryCounters", new XElement(Sd + "NumberOf-BVG-LPP-Salary-Tags", personen.Count)),
+                    new XElement(Sd + "GeneralSalaryDeclarationDescription",
+                        new XElement(Sd + "CreationDate", jetzt.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz")),
+                        new XElement(Sd + "AccountingPeriod", year),
+                        new XElement(Sd + "ContactPerson", Kontakt(stamm, warn))))));
+        var xml = doc.Declaration + Environment.NewLine + doc.ToString();
+        return new Ergebnis(xml, new(), warn, _validator.Validate(xml));
+    }
+
+    private sealed record Kopfdaten(
+        List<Arbeitszeitmodell> Modelle, List<EmployeeArbeitszeitmodell> Zuordnungen, Func<string?, string?, int?> Gemeinde,
+        List<EmployeePermitHistory> Permits, Dictionary<int, PermitType> PermitTypen);
+
+    private async Task<Kopfdaten> LadeKopfdatenAsync(Personen geladen, CancellationToken ct)
+    {
+        var stamm = geladen.Stamm;
+        var modelle = stamm.Hauptsitz == null ? new List<Arbeitszeitmodell>()
+            : await _db.Arbeitszeitmodelle.AsNoTracking().Where(m => m.HauptsitzId == stamm.Hauptsitz.Id && m.IsActive).OrderBy(m => m.Id).ToListAsync(ct);
+        var ids = geladen.Stand.Keys.ToList();
+        var zuordnungen = modelle.Count == 0 ? new List<EmployeeArbeitszeitmodell>()
+            : await _db.EmployeeArbeitszeitmodelle.AsNoTracking().Where(z => ids.Contains(z.EmployeeId)).ToListAsync(ct);
+        var plz = geladen.Mitarbeitende.Select(e => (e.ZipCode ?? "").Trim())
+            .Concat(geladen.Wohnort.Select(h => (h.Plz ?? "").Trim())).Where(z => z.Length == 4).Distinct().ToList();
+        var orte = await _db.SwissLocations.AsNoTracking().Where(l => plz.Contains(l.Plz4))
+            .Select(l => new { l.Plz4, l.BfsNr, l.Ortschaftsname, l.Gemeindename }).ToListAsync(ct);
+        int? Gemeinde(string? plzRoh, string? ortRoh)
+        {
+            var z = (plzRoh ?? "").Trim();
+            if (z.Length != 4) return null;
+            var o = (ortRoh ?? "").Trim().ToLowerInvariant();
+            var kand = orte.Where(x => x.Plz4 == z).ToList();
+            var best = kand.FirstOrDefault(x => (x.Ortschaftsname ?? "").ToLowerInvariant().StartsWith(o) || (x.Gemeindename ?? "").ToLowerInvariant() == o)?.BfsNr;
+            if (best is > 0) return best;
+            var nrs = kand.Select(x => x.BfsNr).Distinct().ToList();
+            return nrs.Count == 1 ? nrs[0] : null;
+        }
+        var permits = await _db.EmployeePermitHistories.AsNoTracking().Where(h => ids.Contains(h.EmployeeId)).ToListAsync(ct);
+        var permitTypen = await _db.PermitTypes.AsNoTracking().ToDictionaryAsync(p => p.Id, ct);
+        return new Kopfdaten(modelle, zuordnungen, Gemeinde, permits, permitTypen);
+    }
+
+    /// <summary>Particulars und Work einer Person am Stichtag, für EMA und Prospective.</summary>
+    private static (List<XElement> Inhalt, List<(DateTime Start, DateTime Ende)> VorKetten) PersonKopf(
+        Employee e, Personen geladen, Kopfdaten k, int year, DateOnly monatsEndeTag, List<string> warn)
+    {
+        var monatsEnde = monatsEndeTag.ToDateTime(TimeOnly.MinValue);
+        var monatsAnfang = new DateTime(monatsEnde.Year, monatsEnde.Month, 1);
+        var eigene = geladen.Anstellungen[e.Id];
+        // Frühere Anstellungen des Jahres: je eine eigene Work (TF40 Farine _0, _1, _2).
+        var jahrStart = new DateTime(year, 1, 1);
+        var kette = ElmMonthlyDeclarationBuilder.Anstellung(eigene, monatsAnfang, monatsEnde);
+        var vorKetten = new List<(DateTime Start, DateTime Ende)>();
+        if (kette is { } akt && akt.Start > jahrStart)
+        {
+            var vor = akt.Start;
+            while (vor > jahrStart)
+            {
+                var vk = ElmMonthlyDeclarationBuilder.Anstellung(eigene, jahrStart, vor.AddDays(-1));
+                if (vk is not { Ende: DateTime vkEnde } || vkEnde >= vor || vkEnde < jahrStart) break;
+                vorKetten.Insert(0, (vk.Value.Start, vkEnde));
+                vor = vk.Value.Start;
+            }
+        }
+        var zuordnung = k.Zuordnungen.Where(z => z.EmployeeId == e.Id && z.GueltigAb <= monatsEndeTag)
+            .OrderByDescending(z => z.GueltigAb).ThenByDescending(z => z.Id).FirstOrDefault();
+        var modell = (zuordnung != null ? k.Modelle.FirstOrDefault(m => m.Id == zuordnung.ArbeitszeitmodellId) : null) ?? k.Modelle.FirstOrDefault();
+        var emHaupt = eigene.Where(v => v.ContractStartDate <= monatsEnde && (v.ContractEndDate == null || v.ContractEndDate >= monatsAnfang))
+                          .OrderByDescending(v => v.ContractStartDate).FirstOrDefault()
+                      ?? eigene.OrderByDescending(v => v.ContractStartDate).FirstOrDefault();
+        var vollzeit = modell?.Wochenstunden is > 0m ? modell.Wochenstunden!.Value : geladen.Stamm.Haupt.NormalWeeklyHours ?? 42m;
+
+        var (ziv, zivSeit, _) = ZivilstandHistorieService.Am(geladen.Zivilstand.Where(h => h.EmployeeId == e.Id), monatsEndeTag, e.MaritalStatus, e.MaritalStatusSince);
+        // Ledig ohne Datum: seit Geburt (TF36 Maldini Januar 2025, Eintrag «seit jeher»).
+        if (zivSeit == null && MapCivilStatus(ziv) == "single") zivSeit = DateOnly.FromDateTime(e.DateOfBirth!.Value);
+        var wohnHist = geladen.Wohnort.Where(h => h.EmployeeId == e.Id).ToList();
+        var wohnAm = WohnortHistorieService.Am(wohnHist, monatsEndeTag, e.Street, e.ZipCode, e.City, e.CantonCode, e.Country);
+        var adresseAm = new PersonAdresseAm(wohnAm.Strasse, wohnAm.Plz, wohnAm.Ort, wohnAm.Land, wohnAm.KantonCode);
+        var umzug = WohnortHistorieService.UmzugImMonat(wohnHist, monatsEndeTag.AddYears(-1).AddDays(1), monatsEndeTag);
+        PersonAdresseAm? adresseVorher = umzug is { } u ? new PersonAdresseAm(u.Alt.Strasse, u.Alt.Plz, u.Alt.Ort, u.Alt.Land, u.Alt.KantonCode) : null;
+        var permitId = ElmMonthlyDeclarationBuilder.BewilligungAmStichtag(k.Permits.Where(h => h.EmployeeId == e.Id), monatsEndeTag);
+        var permitAmEnde = permitId != null && k.PermitTypen.TryGetValue(permitId.Value, out var pt) ? pt : null;
+
+        var inhalt = new List<XElement>
+        {
+            Particulars(e, warn, k.Gemeinde(adresseAm.Zip, adresseAm.City), permitAmEnde, ziv, zivSeit, adresseAm, adresseVorher, umzug?.Wegzug,
+                adresseVorher == null ? null : k.Gemeinde(adresseVorher.Zip, adresseVorher.City)),
+        };
+        inhalt.AddRange(vorKetten.Select((vk, i) => new XElement(C + "Work",
+            new XAttribute("workID", WorkId(e) + "_" + i),
+            modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
+            new XElement(C + "WorkingTime", WorkingTime(
+                eigene.Where(m => m.ContractStartDate <= vk.Ende).OrderByDescending(m => m.ContractStartDate).FirstOrDefault() ?? emHaupt,
+                vollzeit, zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen, modell?.Wochenlektionen)),
+            new XElement(C + "EntryDate", vk.Start.ToString("yyyy-MM-dd")),
+            new XElement(C + "WithdrawalDate", vk.Ende.ToString("yyyy-MM-dd")))));
+        inhalt.Add(new XElement(C + "Work",
+            new XAttribute("workID", WorkId(e)),
+            modell != null ? new XAttribute("companyWorkingTimeIDRef", "#" + modell.KennungOderId) : null,
+            new XElement(C + "WorkingTime", WorkingTime(emHaupt, vollzeit, zuordnung?.AbweichendeWochenstunden, zuordnung?.AbweichendeWochenlektionen, modell?.Wochenlektionen)),
+            new XElement(C + "EntryDate", (kette?.Start ?? emHaupt?.ContractStartDate ?? e.EntryDate ?? monatsAnfang).ToString("yyyy-MM-dd")),
+            kette?.Ende is DateTime wd && wd <= monatsEnde ? new XElement(C + "WithdrawalDate", wd.ToString("yyyy-MM-dd")) : null));
+        return (inhalt, vorKetten);
+    }
+
+    /// <summary>Arbeitsorte wie in der Monatsmeldung (Rückblick, docs/swissdec-abgeleitete-regeln.md Nr. 1).</summary>
+    private async Task<HashSet<int>> ArbeitsorteAsync(HashSet<int> filialIds, int year, int month, CancellationToken ct)
+    {
+        var rueckblick = await (from sn in _db.PayrollSnapshots.AsNoTracking()
+                                join pp in _db.PayrollPerioden.AsNoTracking() on sn.PayrollPeriodeId equals pp.Id
+                                where sn.Status != "STORNIERT" && filialIds.Contains(pp.CompanyProfileId)
+                                      && pp.Year >= year - 1 && pp.Year <= year
+                                select new { pp.CompanyProfileId, pp.Year, pp.Month }).Distinct().ToListAsync(ct);
+        return rueckblick.Where(x => (x.Year == year && x.Month == month)
+                || ElmMonthlyDeclarationBuilder.ImArbeitsortRueckblick(x.Year, x.Month, year, month))
+            .Select(x => x.CompanyProfileId).ToHashSet();
+    }
+
+    private static IEnumerable<XElement?> Kontakt(RechtseinheitStamm stamm, List<string> warn)
+    {
+        var name = (stamm.Hauptsitz?.KontaktName ?? "").Trim();
+        if (name.Length == 0)
+        {
+            warn.Add("Keine Kontaktperson am Hauptsitz erfasst. Erfassung: System → Hauptsitze → Kontaktperson für Lohnmeldungen.");
+            name = stamm.Firmenname;
+        }
+        var mail = (stamm.Hauptsitz?.KontaktEmail ?? "").Trim();
+        var tel = PersonaldatenPruefung.TelefonFuerSwissdec((stamm.Hauptsitz?.KontaktTelefon ?? "").Trim());
+        var mobil = PersonaldatenPruefung.TelefonFuerSwissdec((stamm.Hauptsitz?.KontaktMobil ?? "").Trim());
+        return new[]
+        {
+            new XElement(Sd + "Name", name),
+            mail.Length == 0 ? null : new XElement(Sd + "EmailAddress", mail),
+            tel == null ? null : new XElement(Sd + "PhoneNumber", tel),
+            mobil == null ? null : new XElement(Sd + "MobilePhoneNumber", mobil),
+        };
     }
 
     /// <summary>

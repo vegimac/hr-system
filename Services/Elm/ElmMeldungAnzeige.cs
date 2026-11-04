@@ -165,15 +165,15 @@ public static class ElmMeldungAnzeige
 
     /// <summary>Monats-, Jahres- und die drei Grenzgängermeldungen. Alles andere bleibt in der Entwicklung.</summary>
     public static bool IstAnwender(string? art)
-        => art is "monthly" or "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn";
+        => art is "monthly" or "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" or "ema" or "prospective";
 
     /// <summary>Grenzgänger steckt in DeclareAnnualSalary, nicht in einer eigenen SOAP-Operation.</summary>
     public static bool IstJahresSoap(string? art)
-        => art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn";
+        => art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" or "prospective";
 
     /// <summary>Unbekanntes wird Monatsmeldung. Die drei Grenzgänger-Arten bleiben erhalten.</summary>
     public static string NormalisiereArt(string? art)
-        => art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" ? art : "monthly";
+        => art is "annual" or "grenz-it" or "grenz-fr" or "grenz-sfn" or "ema" or "prospective" ? art : "monthly";
 
     public static string Titel(ElmVorgang v)
     {
@@ -184,6 +184,8 @@ public static class ElmMeldungAnzeige
             "grenz-it" => $"Grenzgänger Italien {jahr}",
             "grenz-fr" => $"Grenzgänger Frankreich {jahr}",
             "grenz-sfn" => $"Grenzgänger SFN {jahr}",
+            "ema" => $"EMA {monat:00}.{jahr}",
+            "prospective" => $"Voraussichtliche BVG-Jahresmeldung {jahr}",
             _ => monat != null ? $"Monatsmeldung {monat:00}.{jahr}" : (string.IsNullOrWhiteSpace(v.Titel) ? "Lohnmeldung" : v.Titel),
         };
     }
@@ -201,12 +203,12 @@ public static class ElmMeldungAnzeige
 
     /// <summary>Ersetzen geht, sobald der Job fertig ist und mindestens ein Empfänger angenommen hat.</summary>
     public static bool Ersetzbar(ElmVorgang v)
-        => IstAnwender(v.Art) && v.JobFinished && DeclarationId(v) != null;
+        => IstAnwender(v.Art) && v.Art != "ema" && v.JobFinished && DeclarationId(v) != null;
 
     /// <summary>Lohnjahr und -monat: gespeichert, sonst aus dem Titel («Monatsmeldung 01.2025», «Jahresmeldung AHV 2025»).</summary>
     public static (int? Jahr, int? Monat) Periode(ElmVorgang v)
     {
-        if (v.Jahr != null) return (v.Jahr, v.Art == "monthly" ? v.Monat : null);
+        if (v.Jahr != null) return (v.Jahr, v.Art is "monthly" or "ema" ? v.Monat : null);
         var m = Regex.Match(v.Titel ?? "", @"Monatsmeldung (\d{2})\.(\d{4})");
         if (m.Success) return (int.Parse(m.Groups[2].Value), int.Parse(m.Groups[1].Value));
         var j = Regex.Match(v.Titel ?? "", @"Jahresmeldung \D*(\d{4})");
@@ -230,7 +232,7 @@ public static class ElmMeldungAnzeige
             || (jetzt - v.Gesendet).TotalDays > AutoHoechstensTage)
             return new();
         return v.Adressaten.Where(a => a.Zustand == "Success" && !string.IsNullOrEmpty(a.FallId)
-                                       && !string.IsNullOrEmpty(a.Key) && !string.IsNullOrEmpty(a.Password)
+                                       && (v.Art == "ema" || (!string.IsNullOrEmpty(a.Key) && !string.IsNullOrEmpty(a.Password)))
                                        && (!Erledigt(a) || ElmUebermittlungXml.ZuQuittieren(a).Count > 0)
                                        && (a.LetzteSynchronisierung is not DateTime t
                                            || jetzt - t >= (WartetAufQuittung(a) ? AutoQuittungAbstand : AutoSyncAbstand)))

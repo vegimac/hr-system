@@ -175,6 +175,7 @@ public static class ElmUebermittlungXml
     {
         "DeclareMonthlySalary" => "monthly",
         "DeclareAnnualSalary" => "annual",
+        "NotifyChanges" => "ema",
         _ => throw new InvalidOperationException($"Unbekannte Meldung «{root.Name.LocalName}».")
     };
 
@@ -324,6 +325,31 @@ public static class ElmUebermittlungXml
                 a.Ausstehend.Select(s => XElement.Parse(s.Xml))));
     }
 
+    /// <summary>
+    /// Synchronize einer EMA-Meldung. Credentials kommen erst mit ELMv6.0.1 (Patch Nr. 5):
+    /// mitgesendet nur, wenn der Empfänger welche geliefert hat, sonst verletzt die Anfrage das heutige Schema.
+    /// </summary>
+    public static XElement BaueSynchronizeNotifyChanges(ElmVorgang v, ElmVorgangAdressat a,
+        IEnumerable<string> quittieren, XElement requestContext)
+        => new(Sdst + "SynchronizeNotifyChanges", NsAttribute(),
+            requestContext,
+            Sender(v.Uid),
+            new XElement(Sdc + "Addressee",
+                new XElement(Ep + "AddresseeIdentification", a.Identification),
+                new XElement(Sd + "Domain", a.Domain ?? "")),
+            new XElement(Sdc + "Case",
+                new XElement(Sdc + "CaseContext",
+                    StoryListe("ReceivedStoryIDs", quittieren),
+                    StoryListe("SuppressedSenderStoryIDs", a.UnterdrueckteSenderStories),
+                    StoryListe("SuppressedInstitutionStoryIDs", a.UnterdrueckteInstitutionStories),
+                    string.IsNullOrEmpty(a.Key) ? null : new XElement(Ep + "Credentials",
+                        new XElement(Ep + "Key", a.Key),
+                        new XElement(Ep + "Password", a.Password ?? "")),
+                    new XElement(Sdc + "NotificationID", a.FallId ?? ""),
+                    v.TestCase ? new XElement(Sdc + "TestCase") : null),
+                a.State != null ? new XElement(Sdc + "ReceivedState", a.State) : null,
+                a.Ausstehend.Select(s => XElement.Parse(s.Xml))));
+
     public static XElement BaueSubscribe(string uid, string firma, string kontakt, string addresseeIdentification,
         string domain, string plz, string ort, string versicherer, string kundennummer, string vertragsnummer,
         bool testCase, XElement requestContext)
@@ -464,11 +490,12 @@ public static class ElmUebermittlungXml
             {
                 zustand = "Success";
                 var ctx = K(ok, "AddresseeContext");
-                fallId = T(ctx, "DeclarationID") ?? T(ctx, "SubscriptionID");
+                fallId = T(ctx, "DeclarationID") ?? T(ctx, "SubscriptionID") ?? T(ctx, "NotificationID");
                 test = K(ctx, "TestCase") != null;
                 inst = T(ctx, "InstitutionName");
                 hinweise = Hinweise(ctx);
-                var cred = K(ok, "Credentials");
+                // EMA: ab ELMv6.0.1 im Fall neben der NotificationID (Patch Nr. 5).
+                var cred = K(ok, "Credentials") ?? K(ctx, "Credentials");
                 key = T(cred, "Key");
                 pw = T(cred, "Password");
             }
