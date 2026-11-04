@@ -138,6 +138,16 @@ public partial class SwissdecTestmandantController
                 new Dictionary<string, string?> { ["Datenaustausch Italien"] = soll ? "ja" : "nein" }));
             if (!vorschau) q.DatenaustauschItalien = soll;
         }
+        // Reihenfolge der FAK-Totale wie die Referenz (Quality Tool vergleicht der Reihe nach, Frage 13 an Swissdec).
+        var fakFolge = new[] { "003", "079", "002", "022", "019", "021" };
+        foreach (var k in await _db.LohndatenEmpfaengers.Where(x => x.Art == "FAK" && x.IsActive).ToListAsync())
+        {
+            var nr = Array.IndexOf(fakFolge, (k.Kassennummer ?? "").Trim());
+            int? soll = nr >= 0 ? nr + 1 : null;
+            if (k.MeldungReihenfolge == soll) continue;
+            aktionen.Add(new Aktion("aktualisieren", "FAK-Kasse", k.Bezeichnung, new Dictionary<string, string?> { ["Reihenfolge"] = soll?.ToString() }));
+            if (!vorschau) k.MeldungReihenfolge = soll;
+        }
         var uvgSeit = TmFirmaDatum(firmaPfad, "CompanyAHVAVSUVGLAAInsurerValidAsOf");
         var bvgSeit = TmFirmaDatum(firmaPfad, "CompanyAHVAVSBVGLPPInsurerValidAsOf");
         aktionen.Add(new Aktion("aktualisieren", "Stammdaten", "Versichert seit", new Dictionary<string, string?>

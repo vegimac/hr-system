@@ -917,7 +917,11 @@ public class ElmAnnualDeclarationBuilder
             new XElement(Sd + "Total-ALV-AC-Incomes", Amt(k.Alv)),
             new XElement(Sd + "Total-ALVZ-ACS-Incomes", Amt(k.Alvz)),
             new XElement(Sd + "Total-ALV-AC-Open", Amt(k.AlvFrei)))).ToList();
-        salaryTotals.AddRange(faks.Select(f => ElmFakAdressierung.Totals(f,
+        // Quality Tool vergleicht die Kassen der Reihe nach (2025-01); ohne Angabe im Katalog bleibt es bei der Kassennummer.
+        int? ReihenfolgeDerKasse(string nummer) => empf
+            .Where(x => x.Art == "FAK" && (x.Kassennummer ?? "").Trim() == nummer).Select(x => x.MeldungReihenfolge).FirstOrDefault(r => r != null);
+        salaryTotals.AddRange(faks.OrderBy(f => ReihenfolgeDerKasse(f.Kassennummer) ?? int.MaxValue).ThenBy(f => f.Kassennummer, StringComparer.OrdinalIgnoreCase)
+            .Select(f => ElmFakAdressierung.Totals(f,
             fakSummen.TryGetValue(f.Kassennummer, out var jeKanton) ? jeKanton : new Dictionary<string, ElmFakAdressierung.Summe>())));
 
         // UVG-Totale nur für Betriebsteile mit Personen (Quality Tool 2024-11); UVGZ/KTG je Code, Codes der SV-Sätze ohne Personen mit 0.00.

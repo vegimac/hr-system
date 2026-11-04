@@ -23,6 +23,9 @@ public class LohndatenEmpfaenger
 
     public string? UidNummer { get; set; }
 
+    /// <summary>Reihenfolge in den Totalen der Meldungen; leer = nach Kassennummer.</summary>
+    public int? MeldungReihenfolge { get; set; }
+
     // Adresse
     public string? Strasse { get; set; }
     public string? Postfach { get; set; }
