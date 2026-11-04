@@ -276,8 +276,8 @@
         body.theme-dark .ma-land-en { color: rgba(210, 220, 232, 0.78); }
         #page-mitarbeiter.liquid-employee .emp-detail-body.ov-noscroll .ov-full .ov-pf-tel2 .ov-softin {
             /* Kein Datums-Icon, also kein Platz rechts: Das Dokument-Zeichen bei der AHV-Nummer blieb sonst draussen. */
-            width: 10ch;
-            min-width: 10ch;
+            width: 9.5ch;
+            min-width: 9.5ch;
             max-width: none;
             padding-right: 4px !important;
             text-overflow: clip;
@@ -296,8 +296,9 @@
             white-space: nowrap; overflow: visible; font-variant-numeric: tabular-nums;
         }
         #page-mitarbeiter.liquid-employee .ov-ahv-eingabe {
-            width: auto !important; min-width: 15ch !important; max-width: 18ch;
-            flex: 1 1 15ch; padding-right: 2px !important;
+            /* Fest auf die 16 Zeichen der AHV-Nummer. */
+            width: 9ch !important; min-width: 9ch !important; max-width: 9ch;
+            flex: 0 0 9ch; padding-right: 2px !important;
         }
         #page-mitarbeiter.liquid-employee .ov-ahv-unb {
             font-size: 12px; color: #3f3f3f; white-space: nowrap;
