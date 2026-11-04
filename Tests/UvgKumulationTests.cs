@@ -30,6 +30,17 @@ public class UvgKumulationTests
     }
 
     [Fact]
+    public void AhvFreibetrag_negatives_Jahrestotal_TF09Estermann()
+    {
+        // Jan–Nov 26'700 (11 Monate), Dez −30'800 → Jahr −4'100: Monat −15'400, AHV +816.20.
+        var basis = PayrollCalculations.AhvFreibetragKumuliert(-30800m, 1400m, 26700m, 11);
+        Assert.Equal(-15400m, basis);
+        Assert.Equal(-816.20m, basis * 5.3m / 100m);
+        // Oktober bleibt: Jan–Sep 53'000, Okt −29'000 → −30'400.
+        Assert.Equal(-30400m, PayrollCalculations.AhvFreibetragKumuliert(-29000m, 1400m, 53000m, 9));
+    }
+
+    [Fact]
     public void Ohne_Codes_null_wie_bisher()
         => Assert.Null(PayrollCalculations.UvgVersicherteMonate(Array.Empty<EmployeeVersicherungCode>(), 2025));
 

@@ -548,7 +548,9 @@ public static class PayrollCalculations
             string abzugBezeichnung = d.AhvFreibetragVerzicht
                 ? "AHV-pflichtig (aktiv) (Verzicht Freibetrag, Wunsch MA)"
                 : d.FreibetragMonthly is > 0
-                    ? (freibetragKumuliert && freibetragAngewendet != d.FreibetragMonthly.Value
+                    ? (freibetragKumuliert && freibetragAngewendet < 0
+                        ? $"{d.Name} (Freibetrag aufgerollt {ahvFreibetragMonateText ?? (ahvFreibetragMonateBisher + 1) + " Mt."}, {ahvFreibetragMonateBisher + 1} × {d.FreibetragMonthly:F2})"
+                        : freibetragKumuliert && freibetragAngewendet != d.FreibetragMonthly.Value
                         ? $"{d.Name} (−CHF {freibetragAngewendet:F2} Freibetrag {ahvFreibetragMonateText ?? (ahvFreibetragMonateBisher + 1) + " Mt."}, {ahvFreibetragMonateBisher + 1} × {d.FreibetragMonthly:F2})"
                         : $"{d.Name} (−CHF {d.FreibetragMonthly:F2} Freibetrag)")
                     : d.Name;
@@ -1738,8 +1740,12 @@ public static class PayrollCalculations
 
     public static decimal AhvFreibetragKumuliert(decimal basisMonat, decimal freibetrag, decimal ytdBasen, int monateBisher, bool neuerMonat = true)
     {
-        decimal pflichtigBisher = Math.Max(0m, ytdBasen - freibetrag * monateBisher);
-        decimal pflichtigTotal  = Math.Max(0m, ytdBasen + basisMonat - freibetrag * (monateBisher + (neuerMonat ? 1 : 0)));
+        // Negatives Jahrestotal (Taggeld-Korrekturen): kein Lohn, auf den ein Freibetrag wirken könnte — der
+        // negative Betrag wird voll zurückerstattet (Swissdec TF09 Estermann Dez 2025: −4'100 → AHV −217.30,
+        // Monat +816.20), wie beim gedeckelten Höchstlohn (Kum).
+        static decimal Pflichtig(decimal lohn, decimal frei) => lohn < 0 ? lohn : Math.Max(0m, lohn - frei);
+        decimal pflichtigBisher = Pflichtig(ytdBasen, freibetrag * monateBisher);
+        decimal pflichtigTotal  = Pflichtig(ytdBasen + basisMonat, freibetrag * (monateBisher + (neuerMonat ? 1 : 0)));
         return pflichtigTotal - pflichtigBisher;
     }
 

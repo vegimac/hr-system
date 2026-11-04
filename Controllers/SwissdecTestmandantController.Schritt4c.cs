@@ -397,6 +397,16 @@ public partial class SwissdecTestmandantController
                         };
                         _db.Employments.Add(neuV); emp.Employments.Add(neuV);
                     }
+                    // Abschnitt aus einem früheren Lauf ohne Lohn (TF40 Farine Dez 2025: Lohn 0, ohne 13. ML): die Testdaten
+                    // nennen keine Vertragsänderung, also gilt der Vertrag vor dem Wiedereintritt.
+                    var abschnitt = emp.Employments.FirstOrDefault(x => x.ContractStartDate.Date == d.Value.ToDateTime(TimeOnly.MinValue).Date);
+                    var davor = emp.Employments.Where(x => x.ContractStartDate.Date < d.Value.ToDateTime(TimeOnly.MinValue).Date)
+                        .OrderByDescending(x => x.ContractStartDate).FirstOrDefault();
+                    if (abschnitt != null && davor != null && (abschnitt.MonthlySalary ?? 0m) == 0m && (davor.MonthlySalary ?? 0m) > 0m)
+                    {
+                        abschnitt.MonthlySalary = davor.MonthlySalary; abschnitt.MonthlySalaryFte = davor.MonthlySalaryFte;
+                        abschnitt.ThirteenthSalary = davor.ThirteenthSalary; abschnitt.VierzehnterMonatslohn = davor.VierzehnterMonatslohn;
+                    }
                     emp.EntryDate = d.Value.ToDateTime(TimeOnly.MinValue); emp.ExitDate = null; emp.KuendigungPer = null; emp.KuendigungAusgesprochenAm = null; emp.IsActive = true;
                 }
             }
