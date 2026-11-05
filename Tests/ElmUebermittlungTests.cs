@@ -429,6 +429,40 @@ public class ElmUebermittlungTests
     }
 
     [Fact]
+    public void JobState_not_found_nach_der_Quittung_ist_kein_Fehler()
+    {
+        const string text = "JobState not found. Either credentials or DeclarationId not found or not matching";
+        var a = Adressat("TaxAtSource");
+        a.State = "Accepted";
+        a.Stories.Add(new ElmStoryEmpfangen { StoryId = "q1", Art = "TaxAtSource-Quittance", Xml = "<q/>" });
+        FaultUebernehmen(a, null, text, null);
+        Assert.False(a.FallAbgebrochen);
+        Assert.Equal("Finished", a.State);
+        Assert.Equal(ElmMeldungAnzeige.Ok, ElmMeldungAnzeige.Empfaenger(a).Stufe);
+    }
+
+    [Fact]
+    public void Schon_gespeicherter_Fall_nach_der_Quittung_ist_wieder_abgeschlossen()
+    {
+        var a = Adressat("TaxAtSource");
+        a.Zustand = "Success";
+        a.FallAbgebrochen = true;
+        a.Fehler = "JobState not found. Either credentials or DeclarationId not found or not matching";
+        a.Stories.Add(new ElmStoryEmpfangen { StoryId = "q1", Art = "TaxAtSource-Quittance", Xml = "<q/>" });
+        Assert.Equal(ElmMeldungAnzeige.Ok, ElmMeldungAnzeige.Empfaenger(a).Stufe);
+        Assert.NotEqual("error", ElmMeldungAnzeige.CockpitStatus(new ElmVorgang { JobFinished = true, Adressaten = { a } }));
+    }
+
+    [Fact]
+    public void JobState_not_found_ohne_Quittung_bleibt_ein_Fehler()
+    {
+        var a = Adressat("TaxAtSource");
+        FaultUebernehmen(a, null, "JobState not found", null);
+        Assert.True(a.FallAbgebrochen);
+        Assert.Equal(ElmMeldungAnzeige.Rot, ElmMeldungAnzeige.Empfaenger(a).Stufe);
+    }
+
+    [Fact]
     public void Fault_MitWartung_LiestDasZeitfenster()
     {
         var f = LiesFault(XDocument.Parse("""

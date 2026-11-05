@@ -28,8 +28,20 @@ public static class ElmMeldungAnzeige
            || a.State is "Finished" or "Rejected" or "closed"
            || a.FallUnbekannt || a.FallAbgebrochen;
 
+    /// <summary>
+    /// Quittung ist da, und danach kennt Swissdec den Job nicht mehr («JobState not found»): Der Fall ist
+    /// erledigt, kein Fehler (Walter 05.11.2026, Quality Tool). Gilt auch für schon gespeicherte Fälle.
+    /// </summary>
+    public static bool FallNachQuittungWeg(ElmVorgangAdressat a, string? fehler)
+        => a.Stories.Any(s => s.Art.Contains("Quittance", StringComparison.OrdinalIgnoreCase))
+           && (fehler ?? "").Contains("JobState not found", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Der Empfänger hat den Fall wirklich mit einem Fehler beendet.</summary>
+    public static bool Abgebrochen(ElmVorgangAdressat a) => a.FallAbgebrochen && !FallNachQuittungWeg(a, a.Fehler);
+
     public static Stand Empfaenger(ElmVorgangAdressat a)
     {
+        if (a.FallAbgebrochen && !Abgebrochen(a)) return new(Ok, "Abgeschlossen", false);
         if (a.FallAbgebrochen)
             return new(Rot, "Fehler beim Synchronisieren" + (string.IsNullOrWhiteSpace(a.Fehler) ? "" : ": " + a.Fehler.Trim()), true);
         if (a.FallUnbekannt) return new(Warn, "Empfänger kennt diesen Fall nicht mehr, OneCrew fragt nicht weiter nach", false);
@@ -125,7 +137,7 @@ public static class ElmMeldungAnzeige
     public static string Empfangsstatus(ElmVorgangAdressat a)
     {
         var code = string.IsNullOrWhiteSpace(a.FehlerCode) ? "" : ": " + a.FehlerCode.Trim();
-        if (a.FallAbgebrochen) return "SwissdecFault" + code;
+        if (Abgebrochen(a)) return "SwissdecFault" + code;
         if (a.Zustand == "Error") return "Error" + code;
         if (a.Zustand != "Success") return a.Zustand == "offen" ? "Processing" : a.Zustand;
         return a.State != null ? "ReceivedState: " + a.State : "Success";
@@ -136,6 +148,7 @@ public static class ElmMeldungAnzeige
     {
         const string fertig = "Der Prozess ist abgeschlossen. Der Fall kann nicht weiter bearbeitet werden.";
         const string korrigieren = " Daten korrigieren und die Meldung neu senden.";
+        if (a.FallAbgebrochen && !Abgebrochen(a)) return fertig;
         if (a.FallAbgebrochen) return fertig + " Die Fehlermeldung prüfen, die Daten korrigieren und die Meldung neu senden. Bei Fragen den Empfänger kontaktieren.";
         if (a.FallUnbekannt) return fertig;
         if (!string.IsNullOrWhiteSpace(a.Wartung)) return $"Der Empfänger ist nicht verfügbar, geplante Wartung {a.Wartung.Trim()}. Danach geht es weiter.";
@@ -201,7 +214,7 @@ public static class ElmMeldungAnzeige
     /// <summary>Mitteilungsübersicht: success, pending oder error. Deutsch daneben über <see cref="CockpitStatusText"/>.</summary>
     public static string CockpitStatus(ElmVorgang v)
     {
-        if (v.Adressaten.Any(a => a.Zustand == "Error" || a.FallAbgebrochen || a.State == "Rejected")) return "error";
+        if (v.Adressaten.Any(a => a.Zustand == "Error" || Abgebrochen(a) || a.State == "Rejected")) return "error";
         if (!v.JobFinished || v.Adressaten.Any(a => a.Zustand is "offen" or "Processing")) return "pending";
         return "success";
     }

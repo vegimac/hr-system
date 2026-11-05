@@ -491,11 +491,21 @@ public static class ElmUebermittlungXml
     /// <summary>Der Empfänger antwortet aufs Synchronisieren mit einem SwissdecFault: Prozess beendet.</summary>
     public static void FaultUebernehmen(ElmVorgangAdressat a, string? code, string text, IEnumerable<Hinweis>? hinweise)
     {
+        if (ElmMeldungAnzeige.FallNachQuittungWeg(a, text)) { NachQuittungErledigt(a); return; }
         a.FallAbgebrochen = true;
         a.Fehler = text;
         a.FehlerCode = code;
         a.LetzteSynchronisierung = DateTime.Now;
         HinweiseMischen(a.Hinweise, hinweise);
+    }
+
+    private static void NachQuittungErledigt(ElmVorgangAdressat a)
+    {
+        a.State = "Finished";
+        a.Fehler = null;
+        a.FehlerDetail = null;
+        a.LetzteSynchronisierung = DateTime.Now;
+        foreach (var st in a.Stories) st.Quittiert = true;
     }
 
     /// <summary>
@@ -617,6 +627,7 @@ public static class ElmUebermittlungXml
         a.LetzteSynchronisierung = DateTime.Now;
         if (s.Fehler != null)
         {
+            if (ElmMeldungAnzeige.FallNachQuittungWeg(a, s.Fehler)) { NachQuittungErledigt(a); return; }
             a.Fehler = s.Fehler;
             a.FehlerDetail = s.FehlerDetail;
             HinweiseMischen(a.Hinweise, s.Hinweise);
