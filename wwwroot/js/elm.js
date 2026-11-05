@@ -307,8 +307,10 @@ function e2ViewgenHtml() {
     const xmlKnopf = (monat) => `<button type="button" class="e2-text" data-e2="viewgen-xml" data-monat="${monat ? e2.monat : ''}" ${e2.viewgenBusy ? 'disabled' : ''}>XML herunterladen</button>`;
     const inhalt = !s ? '<p class="e2-leer">Wird geladen …</p>'
         : !s.installiert ? '<p class="e2-hinweis e2-warn">ViewGen ist auf diesem Server nicht installiert.</p>'
-        : `<div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>Aus der Jahresmeldung ${e2.jahr}</h3></div><div class="e2-viewgen">${knoepfe(false)}${xmlKnopf(false)}</div></div>
-           <div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>Aus der Monatsmeldung ${E2_MONATE[e2.monat - 1]} ${e2.jahr}</h3></div><div class="e2-viewgen">${knoepfe(true)}${xmlKnopf(true)}</div></div>`;
+        : `<div class="e2-vg-gruppen">
+            <div class="e2-vg-gruppe"><div class="e2-vg-kopf"><span class="e2-vg-marke">Jahr</span><b>${e2.jahr}</b><i>Jahresmeldung</i><span class="e2-vg-xml">${xmlKnopf(false)}</span></div><div class="e2-viewgen">${knoepfe(false)}</div></div>
+            <div class="e2-vg-gruppe"><div class="e2-vg-kopf"><span class="e2-vg-marke">Monat</span><b>${E2_MONATE[e2.monat - 1]} ${e2.jahr}</b><i>Monatsmeldung</i><span class="e2-vg-xml">${xmlKnopf(true)}</span></div><div class="e2-viewgen">${knoepfe(true)}</div></div>
+        </div>`;
     return `<section class="e2-karte">
         <div class="e2-karte-kopf"><h2>PDF aus ViewGen</h2></div>
         <p class="e2-ema-text">ViewGen erzeugt die Dokumente aus der Meldung ${e2FilialeId() ? 'der Filiale ' + e2Esc(e2FilialeName()) : 'aller Filialen'}. Produktiv erst nach der Zertifizierung.</p>
