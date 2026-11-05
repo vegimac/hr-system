@@ -59,6 +59,24 @@ public static class ElmMeldeeinheit
         return new Einheit(hs, filialen, filialen, false);
     }
 
+    /// <summary>
+    /// Offene Lohnläufe, die eine echte Meldung sperren (Walter 05.11.2026): Monatsmeldung den Monat,
+    /// Jahres- und Grenzgängermeldung das Jahr bis zum Meldemonat. EMA und voraussichtliche Jahresmeldung hängen nicht am Lohnlauf.
+    /// </summary>
+    public static List<string> OffeneLohnlaeufe(IEnumerable<PayrollPeriode> perioden, IReadOnlyList<CompanyProfile> filialen,
+        string art, int jahr, int? monat)
+    {
+        if (art is "ema" or "prospective") return new();
+        var von = art == "monthly" ? monat ?? 1 : 1;
+        var bis = art is "monthly" or "annual" && monat is >= 1 and <= 12 ? monat.Value : 12;
+        return perioden
+            .Where(p => p.Year == jahr && p.Month >= von && p.Month <= bis && p.Status != "abgeschlossen"
+                        && filialen.Any(f => f.Id == p.CompanyProfileId))
+            .OrderBy(p => p.Month).ThenBy(p => p.CompanyProfileId)
+            .Select(p => $"{p.Month:00}.{p.Year} {filialen.First(f => f.Id == p.CompanyProfileId).FullDisplayName}")
+            .ToList();
+    }
+
     /// <summary>Nach der ersten echten Meldung im Lohnjahr bleibt die Einstellung bis zum nächsten Jahr fix. Testmeldungen zählen nicht.</summary>
     public static bool EinstellungGesperrt(IEnumerable<ElmVorgang> vorgaenge, IReadOnlySet<int> filialIds, int jahr)
         => vorgaenge.Any(v => v.Art != "subscribe" && !v.TestCase && !ElmMeldungAnzeige.Zertifizierungstest(v) && v.Jahr == jahr

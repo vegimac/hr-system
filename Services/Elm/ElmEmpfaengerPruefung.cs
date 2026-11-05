@@ -84,6 +84,19 @@ public static class ElmEmpfaengerPruefung
                 continue;
             }
 
+            if (domaene == "AHV-AVS")
+                foreach (var (element, art, pflicht) in new[] { ("UVG-LAA-Insurance", "UVG", true), ("BVG-LPP-Insurance", "BVG", false) })
+                {
+                    var block = inst!.Elements().FirstOrDefault(e => e.Name.LocalName == element);
+                    if (block == null || block.Elements().All(e => e.Name.LocalName != "NoneWithReason")) continue;
+                    var zugeordnet = katalog.Any(x => x.IsActive && x.Art == art
+                        && x.Zuordnungen.Any(z => filialIds.Contains(z.CompanyProfileId) && Gilt(z, von, bis)));
+                    if (zugeordnet)
+                        fehler.Add($"{art}: Beim Versicherer fehlen in der Meldung Name, UID oder «versichert seit».");
+                    else if (pflicht)
+                        fehler.Add($"{art}: Keine Versicherung bei dieser Filiale zugeordnet.");
+                }
+
             if (domaene == null || !Arten.TryGetValue(domaene, out var arten))
             {
                 fehler.Add($"Empfänger «{(kennung.Length > 0 ? kennung : id)}»: Bei den Lohndaten-Empfängern nicht bestimmbar.");

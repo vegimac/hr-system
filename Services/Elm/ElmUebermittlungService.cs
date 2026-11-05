@@ -119,6 +119,16 @@ public class ElmUebermittlungService
         };
     }
 
+    private async Task<List<string>> OffeneLohnlaeufeAsync(string art, int jahr, int? monat, int? companyProfileId, CancellationToken ct)
+    {
+        var einheit = ElmMeldeeinheit.Bestimme(
+            await _db.CompanyProfiles.AsNoTracking().OrderBy(p => p.Id).ToListAsync(ct),
+            await _db.Hauptsitze.AsNoTracking().OrderBy(h => h.Id).ToListAsync(ct), companyProfileId, new List<string>());
+        if (einheit == null) return new();
+        var perioden = await _db.PayrollPerioden.AsNoTracking().Where(p => p.Year == jahr).ToListAsync(ct);
+        return ElmMeldeeinheit.OffeneLohnlaeufe(perioden, einheit.Gewaehlt, art, jahr, monat);
+    }
+
     /// <summary>Prüft die fertige Meldung gegen die Lohndaten-Empfänger der gewählten Filialen im Meldezeitraum.</summary>
     private async Task<List<string>> EmpfaengerFehlerAsync(XElement root, string art, int jahr, int? monat, int? companyProfileId, CancellationToken ct)
     {
@@ -232,6 +242,15 @@ public class ElmUebermittlungService
         var empfaengerFehler = await EmpfaengerFehlerAsync(XDocument.Parse(xml).Root!, art, o.Jahr, o.Monat, o.CompanyProfileId, ct);
         if (empfaengerFehler.Count > 0)
             return new Ergebnis(false, "Die Meldung wurde NICHT gesendet: " + string.Join(" · ", empfaengerFehler), null, null) { Warnungen = warn };
+
+        // Echte Meldung nur mit abgeschlossenem Lohn; eine Testmeldung darf es vorher.
+        if (!o.TestCase)
+        {
+            var offen = await OffeneLohnlaeufeAsync(art, o.Jahr, o.Monat, o.CompanyProfileId, ct);
+            if (offen.Count > 0)
+                return new Ergebnis(false, "Die Meldung wurde NICHT gesendet, der Lohnlauf ist noch nicht definitiv abgeschlossen: "
+                    + string.Join(" · ", offen), null, null) { Warnungen = warn };
+        }
 
         var plausi = ElmPlausibilitaet.Pruefe(XDocument.Parse(xml).Root!, Periodenende(art, o.Jahr, o.Monat));
         if (plausi.Count > 0)

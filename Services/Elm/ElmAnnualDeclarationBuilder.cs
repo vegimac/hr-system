@@ -946,9 +946,9 @@ public class ElmAnnualDeclarationBuilder
                 new XAttribute("addresseeIDRef", k.Id),
                 new XElement(Sd + "AK-CC-CustomerNumber", k.Abrechnung),
                 InsuranceBlock("UVG-LAA-Insurance", uvgE?.Bezeichnung, uvgE?.UidNummer, st?.UvgVersichertSeit,
-                    "UVG-Meldung folgt in Aufbau-Etappe E5"),
+                    "Keine UVG-Versicherung erfasst"),
                 InsuranceBlock("BVG-LPP-Insurance", bvgE?.Bezeichnung, bvgE?.UidNummer, st?.BvgVersichertSeit,
-                    "BVG-Meldung folgt in Aufbau-Etappe E5"))).ToList();
+                    "Keine BVG-Versicherung erfasst"))).ToList();
         institutions.AddRange(faks.Select(ElmFakAdressierung.Institution));
         institutions.AddRange(versGemeldet.Select(a => new XElement(Sd + VersElement[a],
             new XAttribute("addresseeIDRef", vers[a].Id),

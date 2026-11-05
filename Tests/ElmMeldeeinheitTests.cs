@@ -140,6 +140,54 @@ public class ElmMeldeeinheitTests
         Assert.Empty(ElmEmpfaengerPruefung.Pruefe(Meldung(("#z", "S1000", inst)), new[] { uvg, uvgz }, new HashSet<int> { 1, 2 }, Von, Bis, false));
     }
 
+    private static PayrollPeriode P(int filiale, int monat, string status, int jahr = 2026)
+        => new() { CompanyProfileId = filiale, Year = jahr, Month = monat, Status = status, Label = "" };
+
+    [Fact]
+    public void Offener_Lohnlauf_sperrt_nur_die_gewaehlte_Filiale_und_ihren_Monat()
+    {
+        var perioden = new[] { P(1, 1, "abgeschlossen"), P(1, 2, "offen"), P(2, 1, "offen") };
+        Assert.Empty(ElmMeldeeinheit.OffeneLohnlaeufe(perioden, new[] { F(1, 1) }, "monthly", 2026, 1));
+        Assert.Single(ElmMeldeeinheit.OffeneLohnlaeufe(perioden, new[] { F(1, 1) }, "monthly", 2026, 2));
+        Assert.Single(ElmMeldeeinheit.OffeneLohnlaeufe(perioden, new[] { F(2, 1) }, "monthly", 2026, 1));
+    }
+
+    [Fact]
+    public void Provisorisch_gilt_als_offen_und_Jahresmeldung_prueft_bis_zum_Monat()
+    {
+        var perioden = new[] { P(1, 3, "provisorisch_abgeschlossen"), P(1, 11, "offen") };
+        Assert.Single(ElmMeldeeinheit.OffeneLohnlaeufe(perioden, new[] { F(1, 1) }, "annual", 2026, 6));
+        Assert.Equal(2, ElmMeldeeinheit.OffeneLohnlaeufe(perioden, new[] { F(1, 1) }, "annual", 2026, null).Count);
+        Assert.Equal(2, ElmMeldeeinheit.OffeneLohnlaeufe(perioden, new[] { F(1, 1) }, "grenz-it", 2026, null).Count);
+    }
+
+    [Theory]
+    [InlineData("ema")]
+    [InlineData("prospective")]
+    public void Ema_und_voraussichtliche_Meldung_haengen_nicht_am_Lohnlauf(string art)
+        => Assert.Empty(ElmMeldeeinheit.OffeneLohnlaeufe(new[] { P(1, 1, "offen") }, new[] { F(1, 1) }, art, 2026, 1));
+
+    private static XElement AhvMit(string uvg, string bvg) => new("AHV-AVS", new XAttribute("addresseeIDRef", "#AHV"),
+        new XElement("AK-CC-CustomerNumber", "1"),
+        new XElement("UVG-LAA-Insurance", new XElement(uvg, "x")),
+        new XElement("BVG-LPP-Insurance", new XElement(bvg, "x")));
+
+    [Fact]
+    public void Versicherer_zugeordnet_aber_ohne_Angaben_wird_abgewiesen()
+    {
+        var f = Pruefe(Meldung(("#AHV", "046.000", AhvMit("NoneWithReason", "Name"))), true,
+            Kasse("AUSGLEICHSKASSE", "046.000", 1, "1"), Kasse("UVG", "S122", 1, "K", "V"));
+        Assert.Contains(f, x => x.StartsWith("UVG:") && x.Contains("versichert seit"));
+    }
+
+    [Fact]
+    public void Ohne_UVG_wird_abgewiesen_ohne_BVG_nicht()
+    {
+        var kasse = Kasse("AUSGLEICHSKASSE", "046.000", 1, "1");
+        Assert.Contains(Pruefe(Meldung(("#AHV", "046.000", AhvMit("NoneWithReason", "Name"))), true, kasse), x => x.StartsWith("UVG:"));
+        Assert.Empty(Pruefe(Meldung(("#AHV", "046.000", AhvMit("Name", "NoneWithReason"))), true, kasse));
+    }
+
     private static XElement Bvg(string kunde, string vertrag) => new("BVG-LPP", new XAttribute("addresseeIDRef", "#BVG"),
         new XElement("CustomerIdentity", kunde), new XElement("ContractIdentity", vertrag));
 
