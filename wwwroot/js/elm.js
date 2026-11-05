@@ -215,7 +215,8 @@ function e2Zeichnen() {
     if (!app) return;
     let inhalt = '';
     if (e2.reiter === 'jahr' || e2.reiter === 'monat') inhalt = e2CockpitHtml();
-    else if (e2.reiter === 'ema') inhalt = '<div class="e2-scroll" id="e2EmaPlatz"></div>';
+    else if (e2.reiter === 'ema') inhalt = '<div class="e2-ema-platz" id="e2EmaPlatz"></div>';
+    else if (e2.reiter === 'viewgen') inhalt = `<div class="e2-scroll">${e2ViewgenHtml()}</div>`;
     else if (e2.reiter === 'aufgaben') inhalt = `<div class="e2-scroll">${e2AufgabenHtml()}</div>`;
     else inhalt = `<div class="e2-scroll">${e2KonfigHtml()}</div>`;
     // Der EMA-Block liegt fest in index.html und wird nur umgehängt: Eingaben überleben das Neuzeichnen.
@@ -249,7 +250,7 @@ function e2KopfHtml() {
         <span class="e2-unter">${e2FilialeId() ? e2Esc(e2FilialeName()) : 'Alle Filialen'}${ziel ? ' · ' + e2Esc(ziel.name) : ''}</span>
     </header>
     <div class="e2-leiste">
-        <nav class="e2-reiterleiste">${r('monat', 'Monatsmeldung')}${r('jahr', 'Jahresmeldung')}${r('ema', 'EMA')}${r('aufgaben', 'Aufgaben', offen)}${r('konfig', 'Konfiguration')}</nav>
+        <nav class="e2-reiterleiste">${r('monat', 'Monatsmeldung')}${r('jahr', 'Jahresmeldung')}${r('ema', 'EMA')}${r('aufgaben', 'Aufgaben', offen)}${window._istTestinstanz ? r('viewgen', 'ViewGen') : ''}${r('konfig', 'Konfiguration')}</nav>
         <span class="e2-rechts">
             <span class="e2-sua-pille">
                 <button type="button" class="e2-text e2-sua-link" data-e2="reiter" data-wert="konfig" title="Zur Konfiguration"><span class="e2-punkt ${da && !bald ? 'e2-p-ok' : 'e2-p-warn'}"></span>${e2Esc(suaText)}</button>
@@ -289,24 +290,27 @@ function e2CockpitHtml() {
             <button type="button" class="e2-pille" data-e2="pruefen" ${kannPruefen && !e2.busy ? '' : 'disabled'}>${E2_B.pruefen}</button>
             <button type="button" class="e2-pille e2-primaer" data-e2="senden" ${kannSenden ? '' : 'disabled'}>${E2_B.uebermitteln}${e2.test ? ' (' + E2_B.testmeldung + ')' : ''}</button>
         </div>
-        ${jahr ? e2ViewgenHtml() : ''}
     </section>
     ${e2.historieOffen ? e2HistorieHtml() : e2UebersichtHtml()}</div>`;
 }
 
 // Viewgen: nur auf der Testinstanz, produktiv erst nach der Zertifizierung (Server prüft das ebenfalls).
 function e2ViewgenHtml() {
-    if (!window._istTestinstanz) return '';
+    if (!window._istTestinstanz) return '<p class="e2-leer">ViewGen ist nur auf der Testinstanz verfügbar.</p>';
     if (e2.viewgen === undefined) {
         e2.viewgen = null;
         e2Get('/api/elm/viewgen/status').then(s => { e2.viewgen = s; e2Zeichnen(); });
     }
     const s = e2.viewgen;
-    if (!s) return '';
-    if (!s.installiert) return '<p class="e2-hinweis e2-warn">Viewgen ist auf diesem Server nicht installiert.</p>';
-    const knoepfe = s.berichte.map(b => `<button type="button" class="e2-pille e2-klein" data-e2="viewgen" data-wert="${e2Esc(b.plugin)}" ${e2.viewgenBusy ? 'disabled' : ''}>${e2Esc(b.name)}</button>`).join('');
-    return `<div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>PDF aus Viewgen ${e2.jahr}${e2.viewgenBusy ? ' · wird erzeugt …' : ''}</h3></div>
-        <div class="e2-aktionen">${knoepfe}</div></div>`;
+    const inhalt = !s ? '<p class="e2-leer">Wird geladen …</p>'
+        : !s.installiert ? '<p class="e2-hinweis e2-warn">ViewGen ist auf diesem Server nicht installiert.</p>'
+        : `<div class="e2-viewgen">${s.berichte.map(b => `<button type="button" class="e2-pille" data-e2="viewgen" data-wert="${e2Esc(b.plugin)}" ${e2.viewgenBusy ? 'disabled' : ''}>${e2Esc(b.name)}</button>`).join('')}</div>`;
+    return `<section class="e2-karte">
+        <div class="e2-karte-kopf"><h2>PDF aus ViewGen ${e2.jahr}${e2.viewgenBusy ? ' · wird erzeugt …' : ''}</h2></div>
+        <p class="e2-ema-text">ViewGen erzeugt die Dokumente aus der Jahresmeldung ${e2FilialeId() ? 'der Filiale ' + e2Esc(e2FilialeName()) : 'aller Filialen'}. Produktiv erst nach der Zertifizierung.</p>
+        ${e2PeriodeHtml(true)}
+        ${inhalt}
+    </section>`;
 }
 
 async function e2Viewgen(plugin) {

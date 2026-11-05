@@ -183,8 +183,8 @@ function emaFragenZeigen(fragen) {
         + `<td>${f.art === 'Entry' ? 'Eintritt' : 'Austritt'}</td><td>${f.validAsOf.split('-').reverse().join('.')}</td>`
         + `<td style="text-align:right;white-space:nowrap"><button type="button" class="btn btn-outline" onclick="emaFrageAntwort(${i},'ja')">Ja</button> `
         + `<button type="button" class="btn btn-outline" onclick="emaFrageAntwort(${i},'nein')">Nein</button></td></tr>`).join('');
-    el.innerHTML = `<div style="font-weight:600;margin-bottom:8px">${fragen.length} offen</div>`
-        + '<button type="button" class="btn btn-outline" style="margin-bottom:8px" onclick="emaFragenAlleJa()">Alle mit Ja beantworten</button>'
+    el.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px"><b>${fragen.length} offen</b>`
+        + '<button type="button" class="btn btn-outline" onclick="emaFragenAlleJa()">Alle mit Ja beantworten</button></div>'
         + `<table class="data-table" style="width:100%"><tbody>${zeilen}</tbody></table>`;
 }
 
