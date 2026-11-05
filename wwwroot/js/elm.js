@@ -310,15 +310,80 @@ function e2ViewgenHtml() {
         : `<div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>Aus der Jahresmeldung ${e2.jahr}</h3></div><div class="e2-viewgen">${knoepfe(false)}${xmlKnopf(false)}</div></div>
            <div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>Aus der Monatsmeldung ${E2_MONATE[e2.monat - 1]} ${e2.jahr}</h3></div><div class="e2-viewgen">${knoepfe(true)}${xmlKnopf(true)}</div></div>`;
     return `<section class="e2-karte">
-        <div class="e2-karte-kopf"><h2>PDF aus ViewGen${e2.viewgenBusy ? ' · wird erzeugt …' : ''}</h2></div>
+        <div class="e2-karte-kopf"><h2>PDF aus ViewGen</h2></div>
         <p class="e2-ema-text">ViewGen erzeugt die Dokumente aus der Meldung ${e2FilialeId() ? 'der Filiale ' + e2Esc(e2FilialeName()) : 'aller Filialen'}. Produktiv erst nach der Zertifizierung.</p>
         ${e2PeriodeHtml(false)}
+        ${e2.viewgenBusy ? e2ViewgenWarteHtml() : ''}
         ${inhalt}
     </section>`;
 }
 
+// Warteanzeige: Digitalsignal von der XML durch das Zeichen zum PDF. Sie zeigt nur, dass ViewGen läuft,
+// keinen Fortschritt (ViewGen meldet keinen). Farben aus --oc-*, siehe elm.css.
+const E2_VG_BITS = [1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1];
+
+function e2ViewgenWarteHtml() {
+    const text = e2.viewgenBusy === 'xml' ? 'Die XML wird aus OneCrew erzeugt …' : 'ViewGen erzeugt das PDF, das kann etwas dauern …';
+    return `<div class="e2-vg-warte" role="status">
+        <svg viewBox="0 0 400 96" aria-hidden="true">
+            <rect class="e2-vg-chip" x="4" y="32" width="50" height="32" rx="12"/><text class="e2-vg-chiptext" x="29" y="52.5" text-anchor="middle">XML</text>
+            <rect class="e2-vg-chip" x="346" y="32" width="50" height="32" rx="12"/><text class="e2-vg-chiptext" x="371" y="52.5" text-anchor="middle">PDF</text>
+            <path id="e2VgRoh" class="e2-vg-spur"/><path id="e2VgSauber" class="e2-vg-spur"/>
+            <path id="e2VgRohImpuls" class="e2-vg-impuls"/><path id="e2VgSauberImpuls" class="e2-vg-impuls e2-vg-rot"/>
+            <g class="e2-vg-zeichen" transform="translate(174 13) scale(.56)">
+                <polygon points="5,28 49,16 49,41 27,47 27,74 49,67 49,93 5,106"/><polygon points="70,10 92,3 92,29 70,35"/><polygon points="70,62 92,55 92,81 70,87"/>
+            </g>
+        </svg>
+        <p>${e2Esc(text)}</p>
+    </div>`;
+}
+
+function e2VgZug(a, b, f, t) {
+    const w = 10, hi = 34, lo = 62, r = 3;
+    let x = a - (((t % w) + w) % w), n = Math.floor(t / w), v = f(n);
+    let s = `M${a} ${v ? hi : lo} `;
+    while (x < b) {
+        x += w; n++;
+        const px = Math.min(x, b), y = v ? hi : lo, u = f(n);
+        if (px >= b || u === v) s += `L${px} ${y} `;
+        else {
+            const y2 = u ? hi : lo, dir = y2 > y ? 1 : -1;
+            s += `L${px - r} ${y} Q${px} ${y} ${px} ${y + dir * r} L${px} ${y2 - dir * r} Q${px} ${y2} ${px + r} ${y2} `;
+        }
+        v = u;
+    }
+    return s;
+}
+
+function e2VgZeichnen(ms) {
+    const roh = document.getElementById('e2VgRoh');
+    if (!e2.viewgenBusy) { e2.viewgenLauf = false; return; }
+    if (roh) {
+        const t = 9e5 - ms / 40;
+        const l = e2VgZug(62, 168, n => E2_VG_BITS[((n % 24) + 24) % 24], t);
+        const k = e2VgZug(236, 338, n => ((n % 2) + 2) % 2, t);
+        const versatz = -(ms / 5) % 240;
+        roh.setAttribute('d', l);
+        document.getElementById('e2VgSauber').setAttribute('d', k);
+        for (const [id, d] of [['e2VgRohImpuls', l], ['e2VgSauberImpuls', k]]) {
+            const p = document.getElementById(id);
+            p.setAttribute('d', d);
+            p.setAttribute('stroke-dashoffset', versatz);
+        }
+    }
+    // Reduzierte Bewegung: ein stehendes Bild, das Zeichnen läuft trotzdem weiter, falls neu gezeichnet wird.
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) setTimeout(() => e2VgZeichnen(0), 400);
+    else requestAnimationFrame(e2VgZeichnen);
+}
+
+function e2VgStarten() {
+    if (e2.viewgenLauf) return;
+    e2.viewgenLauf = true;
+    requestAnimationFrame(e2VgZeichnen);
+}
+
 async function e2ViewgenXml(monat) {
-    e2.viewgenBusy = true; e2.hinweis = null; e2Zeichnen();
+    e2.viewgenBusy = 'xml'; e2VgStarten(); e2.hinweis = null; e2Zeichnen();
     try {
         const r = await fetch('/api/elm/viewgen/xml', { method: 'POST', headers: ah(),
             body: JSON.stringify({ jahr: e2.jahr, monat: monat || null, companyProfileId: e2FilialeId() }) });
@@ -336,7 +401,7 @@ async function e2ViewgenXml(monat) {
 }
 
 async function e2Viewgen(plugin, monat) {
-    e2.viewgenBusy = true; e2.hinweis = null; e2Zeichnen();
+    e2.viewgenBusy = 'pdf'; e2VgStarten(); e2.hinweis = null; e2Zeichnen();
     try {
         const r = await fetch('/api/elm/viewgen/bericht', { method: 'POST', headers: ah(),
             body: JSON.stringify({ plugin, jahr: e2.jahr, monat: monat || null, companyProfileId: e2FilialeId() }) });

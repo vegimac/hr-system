@@ -27,6 +27,7 @@
     --oc-ok:   #16a34a;  --oc-ok-bg:   rgba(22, 163, 74, 0.12);  --oc-ok-text:   #166534;
     --oc-warn: #d97706;  --oc-warn-bg: rgba(217, 119, 6, 0.12);  --oc-warn-text: #92400e;
     --oc-rot:  #dc2626;  --oc-rot-bg:  rgba(220, 38, 38, 0.10);  --oc-rot-text:  #991b1b;
+    --oc-swissdec-rot: #D2294B;
 }
 body.theme-dark {
     --oc-seite:        transparent;                  /* der Grund kommt von body (--dlg-bg) */
@@ -51,4 +52,5 @@ body.theme-dark {
     --oc-ok:   #22c55e;  --oc-ok-bg:   rgba(34, 197, 94, 0.18);  --oc-ok-text:   #86efac;
     --oc-warn: #f59e0b;  --oc-warn-bg: rgba(245, 158, 11, 0.18); --oc-warn-text: #fcd34d;
     --oc-rot:  #ef4444;  --oc-rot-bg:  rgba(239, 68, 68, 0.18);  --oc-rot-text:  #fca5a5;
+    --oc-swissdec-rot: #E8466A;
 }
