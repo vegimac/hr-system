@@ -280,9 +280,9 @@ function e2CockpitHtml() {
     const auswahl = jahr ? e2JahrAuswahlHtml() : e2MonatAuswahlHtml();
     const kannPruefen = jahr ? e2ZeilenGewaehlt().length > 0 : e2.wahlMonat.size > 0;
     const kannSenden = !!e2.pruefung?.ok && !e2.busy && !e2.stand?.sendenGesperrt;
-    return `<div class="e2-spalten"><section class="e2-karte e2-spalte">
+    return `<div class="e2-periode-leiste">${e2PeriodeHtml(jahr)}</div>
+    <div class="e2-spalten"><section class="e2-karte e2-spalte">
         <div class="e2-karte-kopf"><h2>${jahr ? 'Jahresmeldung' : 'Monatsmeldung'} ${jahr ? e2.jahr : E2_MONATE[e2.monat - 1] + ' ' + e2.jahr}</h2></div>
-        ${e2PeriodeHtml(jahr)}
         ${ersatz}
         ${auswahl}
         ${e2PruefungHtml()}
@@ -312,7 +312,7 @@ function e2ViewgenHtml() {
     return `<section class="e2-karte">
         <div class="e2-karte-kopf"><h2>PDF aus ViewGen</h2></div>
         <p class="e2-ema-text">ViewGen erzeugt die Dokumente aus der Meldung ${e2FilialeId() ? 'der Filiale ' + e2Esc(e2FilialeName()) : 'aller Filialen'}. Produktiv erst nach der Zertifizierung.</p>
-        ${e2PeriodeHtml(false)}
+        <div class="e2-periode-leiste e2-periode-innen">${e2PeriodeHtml(false)}</div>
         ${e2.viewgenBusy ? e2ViewgenWarteHtml() : ''}
         ${inhalt}
     </section>`;
@@ -436,6 +436,9 @@ function e2JahrStand(y) {
     const m = e2Meldungen().find(x => x.art !== 'monthly' && x.jahr === y);
     return m ? { klasse: 'e2-m-' + m.status, text: E2_STATUS_TEXT[m.status] || '' } : null;
 }
+// Auf einer Zeile ist der Platz knapp, der volle Text steht im Tooltip der Kachel.
+const E2_MONAT_KURZ = { abgeschlossen: 'fertig', 'Lohnlauf offen': 'offen', provisorisch: 'provis.', übermittelt: 'gesendet' };
+
 function e2PeriodeHtml(jahr) {
     const heute = new Date().getFullYear();
     const jahre = [];
@@ -449,7 +452,7 @@ function e2PeriodeHtml(jahr) {
         const st = e2MonatStand(m);
         if (!st.sichtbar) return '';
         return `<button type="button" class="e2-monat${m === e2.monat ? ' an' : ''} ${st.klasse}" data-e2="monat-wahl" data-wert="${m}" title="${e2Esc(name + ' ' + e2.jahr + ': ' + st.text)}">
-            <b>${name.slice(0, 3)}</b><span>${e2Esc(st.text)}</span></button>`;
+            <b>${name.slice(0, 3)}</b><span>${e2Esc(E2_MONAT_KURZ[st.text] || st.text)}</span></button>`;
     }).join('');
     const monate = jahr ? '' : (kacheln
         ? `<div class="e2-monate">${kacheln}</div>`

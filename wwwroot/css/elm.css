@@ -306,3 +306,17 @@
 }
 body.theme-dark #e2App .e2-reiter { background-image: none; background-color: var(--oc-flaeche-2); color: var(--oc-text); box-shadow: 0 0 0 1px var(--oc-rand); }
 body.theme-dark #e2App .e2-reiter.an { background-image: linear-gradient(#2563a0, #1a4a7a); color: #ffffff; box-shadow: 0 0 18px rgba(70, 150, 235, 0.28), inset 0 1px 0 rgba(235, 248, 255, 0.28); }
+
+/* Periode über die ganze Breite (Walter 05.11.2026): Jahr links, alle Monate auf einer Zeile. */
+#e2App .e2-periode-leiste { flex: none; margin: 0 0 12px; padding: 10px 14px; border-radius: 16px; background: var(--oc-flaeche); border: 1px solid var(--oc-glasrand); box-shadow: var(--oc-schatten-klein); }
+#e2App .e2-periode-innen { margin: 8px 0 12px; padding: 0; background: none; border: 0; box-shadow: none; }
+#e2App .e2-periode-leiste .e2-periodenwahl { display: flex; align-items: center; gap: 14px; margin: 0; }
+#e2App .e2-periode-leiste .e2-jahre { flex: none; margin: 0; }
+#e2App .e2-periode-leiste .e2-monate { flex: 1 1 auto; min-width: 0; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 6px; }
+#e2App .e2-periode-leiste .e2-monat { min-width: 0; padding: 6px 8px; }
+#e2App .e2-periode-leiste .e2-monat span { display: block; font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#e2App .e2-periode-leiste .e2-leer { margin: 0; }
+@media (max-width: 1300px) {
+    #e2App .e2-periode-leiste .e2-periodenwahl { flex-wrap: wrap; }
+    #e2App .e2-periode-leiste .e2-monate { flex-basis: 100%; }
+}
