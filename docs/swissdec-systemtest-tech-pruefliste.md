@@ -16,7 +16,7 @@ Seite für alle Punkte, ausser wo anders genannt: System → **Lohnmeldungen (EL
 | 02_05, 02_06 Finished/Rejected | PROCESS_FINISHED | «Der Prozess ist abgeschlossen. Der Fall kann nicht weiter bearbeitet werden.» Kein Abfrage-Knopf, Antwortfelder gesperrt, Server lehnt Antworten ab. | neu |
 | 02_07 SwissdecFault beim Synchronisieren | FAULT_DISPLAY, PROCESS_FINISHED | Fehler beim Empfänger, nächster Schritt, Fall geschlossen, keine weiteren Abfragen. Geplante Wartung schliesst den Fall nicht. | neu |
 | 03_01, 03_02, 03_03 Completion | COMPLETION | Knopf «Beim Empfänger freigeben» öffnet die URL mit Key und Passwort. Zusatzparameter und je 4000 Zeichen sind getestet. | war da, Test neu |
-| 04_01 Lohnausweis mit Viewgen | GENERATE, VIEWGEN_VERSION | OneCrew nutzt Viewgen nicht, darum gilt 04_02 | entfällt, bei Swissdec bestätigen |
+| 04_01 Lohnausweis mit Viewgen | GENERATE, VIEWGEN_VERSION | Viewgen ist auf der Testinstanz eingebaut (`074fcec`, `docs/claude/swissdec-stand.md`). Produktiv erst nach der Zertifizierung, bis dahin bleibt der eigene Barcode | auf Test prüfen |
 | 04_02 Eigener Lohnausweis | GENERATE, SELECT_PERSONS, SCAN_BARCODE, FORWARD_CONTENT | Lohnausweis mit Barcode aus OneCrew. Scannen und Weiterleiten macht Walter. | Siehe «Offen» unten |
 | 05_01 Standard-Dialog | GET_DIALOG, UI | Titel, Beschreibung, Abschnitte, Werte, Fragen. Abschnitte fehlten auf dieser Seite. | neu |
 | 05_02 BESTA-Dialog | UI | Gleiche Darstellung, alle Feldtypen des Schemas. Muster fehlt im Repo. | ungeprüft |

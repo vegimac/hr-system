@@ -5,7 +5,7 @@ Lohnarten aus `SWISSCEC/Testmandant/wagetypes_export.csv`, Sätze aus `company_e
 Personen + Mutationen aus den beiden anderen CSV — gerechnet mit `PayrollCalculations.BuildResult`,
 verglichen mit `SWISSCEC/RefXML/*_RETROSPECTIVE.xml` (YTD-Basen) und `*_MONTHLY.xml` (SV-Abzug).
 
-**384 Monatsabrechnungen, 2565 Vergleiche, 29 offene Abweichungen** (dazu 0 bewusste und 9 Werkzeug-Grenzen, unten aufgeführt).
+**384 Monatsabrechnungen, 2565 Vergleiche, 27 offene Abweichungen** (dazu 0 bewusste und 9 Werkzeug-Grenzen, unten aufgeführt).
 
 Nicht Teil dieser Nachrechnung (kommt im Lohnlauf aus der Datenbank): Stunden, Verträge,
 Saldi, Ferien-/Feiertag-Tage, 13.-ML-Rückstellung, Quellensteuer.
@@ -29,8 +29,6 @@ Saldi, Ferien-/Feiertag-Tage, 13.-ML-Rückstellung, Quellensteuer.
 | TF03 Lusser Pia | 06 | KTG-Basis | 10,000.00 | 4,700.00 | +5300.00 |  |
 | TF03 Lusser Pia | 07 | KTG-Basis | 10,000.00 | 1,500.00 | +8500.00 |  |
 | TF03 Lusser Pia | 08 | KTG-Basis | 2,400.00 | 1,500.00 | +900.00 |  |
-| TF09 Estermann Michael | 12 | KTG-Basis | -4,100.00 | 0.00 | -4100.00 |  |
-| TF09 Estermann Michael | 12 | SV-Abzug Monat | -598.90 | -816.20 | +217.30 | AHV + ALV + ALVZ + NBU |
 | TF12 Casanova Renato | 10 | UVGZ-Basis | -6,303.33 | 0.00 | -6303.33 |  |
 | TF12 Casanova Renato | 10 | KTG-Basis | -6,350.00 | 0.00 | -6350.00 |  |
 | TF12 Casanova Renato | 11 | KTG-Basis | 2,650.00 | 0.00 | +2650.00 |  |
@@ -53,7 +51,7 @@ Saldi, Ferien-/Feiertag-Tage, 13.-ML-Rückstellung, Quellensteuer.
 | TF40 Farine Corinne | 12 | UVG-Basis | 12,350.00 | 17,100.00 | -4750.00 |  |
 | TF40 Farine Corinne | 12 | UVGZ-Basis | 12,350.00 | 20,700.00 | -8350.00 |  |
 | TF40 Farine Corinne | 12 | SV-Abzug Monat | 2,678.45 | 2,891.35 | -212.90 | AHV + ALV + ALVZ + NBU |
-| TF41 Meier Max | 07 | ALVZ-Basis | 18,525.00 | 0.00 | +18525.00 |  |
+| TF41 Meier Max | 07 | ALVZ-Basis | 18,525.00 | -2,350.00 | +20875.00 |  |
 | TF41 Meier Max | 07 | SV-Abzug Monat | 956.85 | 852.45 | +104.40 | AHV + ALV + ALVZ + NBU |
 
 ## Grenzen des Nachrechners — kein Befund gegen die Lohnrechnung
