@@ -267,7 +267,7 @@
 
 /* Warteanzeige ViewGen (Walter 05.11.2026): Signal von der XML durch das Zeichen zum PDF. */
 #e2App .e2-vg-warte { margin: 8px 0; padding: 6px 12px 6px; border-radius: 18px; background: var(--oc-flaeche-2); text-align: center; }
-#e2App .e2-vg-warte svg { display: block; width: 100%; max-width: 460px; margin: 0 auto; }
+#e2App .e2-vg-warte svg { display: block; width: 100%; max-width: 540px; margin: 0 auto; }
 #e2App .e2-vg-warte p { margin: 2px 0 0; font-size: 12px; color: var(--oc-text-2); }
 #e2App .e2-vg-chip { fill: var(--oc-primaer); }
 #e2App .e2-vg-chiptext { fill: var(--oc-primaer-text); font: 500 12px inherit; font-family: inherit; }
