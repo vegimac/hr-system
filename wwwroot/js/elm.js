@@ -302,24 +302,46 @@ function e2ViewgenHtml() {
         e2Get('/api/elm/viewgen/status').then(s => { e2.viewgen = s; e2Zeichnen(); });
     }
     const s = e2.viewgen;
+    const knoepfe = (monat) => s.berichte.filter(b => monat ? b.ausMonat : b.ausJahr).map(b =>
+        `<button type="button" class="e2-pille" data-e2="viewgen" data-wert="${e2Esc(b.plugin)}" data-monat="${monat ? e2.monat : ''}" ${e2.viewgenBusy ? 'disabled' : ''}>${e2Esc(b.name)}</button>`).join('');
+    const xmlKnopf = (monat) => `<button type="button" class="e2-text" data-e2="viewgen-xml" data-monat="${monat ? e2.monat : ''}" ${e2.viewgenBusy ? 'disabled' : ''}>XML herunterladen</button>`;
     const inhalt = !s ? '<p class="e2-leer">Wird geladen …</p>'
         : !s.installiert ? '<p class="e2-hinweis e2-warn">ViewGen ist auf diesem Server nicht installiert.</p>'
-        : `<div class="e2-viewgen">${s.berichte.map(b => `<button type="button" class="e2-pille" data-e2="viewgen" data-wert="${e2Esc(b.plugin)}" ${e2.viewgenBusy ? 'disabled' : ''}>${e2Esc(b.name)}</button>`).join('')}</div>`;
+        : `<div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>Aus der Jahresmeldung ${e2.jahr}</h3></div><div class="e2-viewgen">${knoepfe(false)}${xmlKnopf(false)}</div></div>
+           <div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>Aus der Monatsmeldung ${E2_MONATE[e2.monat - 1]} ${e2.jahr}</h3></div><div class="e2-viewgen">${knoepfe(true)}${xmlKnopf(true)}</div></div>`;
     return `<section class="e2-karte">
-        <div class="e2-karte-kopf"><h2>PDF aus ViewGen ${e2.jahr}${e2.viewgenBusy ? ' · wird erzeugt …' : ''}</h2></div>
-        <p class="e2-ema-text">ViewGen erzeugt die Dokumente aus der Jahresmeldung ${e2FilialeId() ? 'der Filiale ' + e2Esc(e2FilialeName()) : 'aller Filialen'}. Produktiv erst nach der Zertifizierung.</p>
-        ${e2PeriodeHtml(true)}
+        <div class="e2-karte-kopf"><h2>PDF aus ViewGen${e2.viewgenBusy ? ' · wird erzeugt …' : ''}</h2></div>
+        <p class="e2-ema-text">ViewGen erzeugt die Dokumente aus der Meldung ${e2FilialeId() ? 'der Filiale ' + e2Esc(e2FilialeName()) : 'aller Filialen'}. Produktiv erst nach der Zertifizierung.</p>
+        ${e2PeriodeHtml(false)}
         ${inhalt}
     </section>`;
 }
 
-async function e2Viewgen(plugin) {
+async function e2ViewgenXml(monat) {
+    e2.viewgenBusy = true; e2.hinweis = null; e2Zeichnen();
+    try {
+        const r = await fetch('/api/elm/viewgen/xml', { method: 'POST', headers: ah(),
+            body: JSON.stringify({ jahr: e2.jahr, monat: monat || null, companyProfileId: e2FilialeId() }) });
+        if (r.ok) {
+            const name = monat ? `Monatsmeldung-${String(monat).padStart(2, '0')}-${e2.jahr}.xml` : `Jahresmeldung-${e2.jahr}.xml`;
+            await saveBlobAsk(await r.blob(), name);
+        } else {
+            const j = await r.json().catch(() => ({}));
+            e2.hinweis = { ok: false, text: j.message || 'Die Meldung liess sich nicht erzeugen.' };
+        }
+    } catch {
+        e2.hinweis = { ok: false, text: 'Server nicht erreichbar.' };
+    }
+    e2.viewgenBusy = false; e2Zeichnen();
+}
+
+async function e2Viewgen(plugin, monat) {
     e2.viewgenBusy = true; e2.hinweis = null; e2Zeichnen();
     try {
         const r = await fetch('/api/elm/viewgen/bericht', { method: 'POST', headers: ah(),
-            body: JSON.stringify({ plugin, jahr: e2.jahr, companyProfileId: e2FilialeId() }) });
+            body: JSON.stringify({ plugin, jahr: e2.jahr, monat: monat || null, companyProfileId: e2FilialeId() }) });
         if (r.ok) {
-            await previewFileModal(await r.blob(), `Viewgen-${plugin}-${e2.jahr}.pdf`);
+            await previewFileModal(await r.blob(), `Viewgen-${plugin}-${monat ? String(monat).padStart(2, '0') + '-' : ''}${e2.jahr}.pdf`);
         } else {
             const j = await r.json().catch(() => ({}));
             e2.hinweis = { ok: false, text: j.message || 'Viewgen hat kein PDF geliefert.' };
@@ -867,7 +889,8 @@ function e2Klick(ev) {
     else if (a === 'jahr-wahl') e2JahrWahl(parseInt(el.dataset.wert, 10));
     else if (a === 'monat-wahl') e2MonatWahl(parseInt(el.dataset.wert, 10));
     else if (a === 'pruefen') e2Pruefen();
-    else if (a === 'viewgen') e2Viewgen(el.dataset.wert);
+    else if (a === 'viewgen-xml') e2ViewgenXml(parseInt(el.dataset.monat, 10) || null);
+    else if (a === 'viewgen') e2Viewgen(el.dataset.wert, parseInt(el.dataset.monat, 10) || null);
     else if (a === 'senden') e2Senden();
     else if (a === 'historie') { e2.historieOffen = !e2.historieOffen; e2Zeichnen(); }
     else if (a === 'auswahl') { e2.auswahl[e2.reiter] = el.dataset.id; e2.detail = null; e2.historieOffen = false; e2Zeichnen(); }

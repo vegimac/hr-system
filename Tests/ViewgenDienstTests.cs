@@ -23,6 +23,18 @@ public class ViewgenDienstTests : IDisposable
     private static IEnumerable<string> Arbeitsordner() =>
         Directory.GetDirectories(Path.GetTempPath(), "viewgen_*").Where(d => !Path.GetFileName(d).StartsWith("viewgen_test_"));
 
+    [Theory]
+    [InlineData("QstReport", false, true)]
+    [InlineData("StatisticReport", false, true)]
+    [InlineData("PlausibilityReport", true, true)]
+    [InlineData("AhvReport", true, false)]
+    [InlineData("FakDetailedReport", true, false)]
+    public void Bericht_kommt_aus_der_richtigen_Meldung(string plugin, bool jahr, bool monat)
+    {
+        Assert.Equal(jahr, ViewgenDienst.AusJahr(plugin));
+        Assert.Equal(monat, ViewgenDienst.AusMonat.Contains(plugin));
+    }
+
     [Fact]
     public async Task Pdf_wird_geliefert_und_Arbeitsordner_entfernt()
     {
