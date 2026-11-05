@@ -37,6 +37,12 @@ public class Hauptsitz
     public int? BfsGemeindeNr { get; set; }
 
     /// <summary>
+    /// Lohnmeldungen: true = je Filiale mit Name, UID und Nummern der Filiale; false = über den Hauptsitz,
+    /// alle Filialen als Arbeitsorte (Walter 05.11.2026). Nach der ersten echten Meldung im Lohnjahr fix.
+    /// </summary>
+    public bool LohnmeldungJeFiliale { get; set; } = true;
+
+    /// <summary>
     /// Ein Buchungskreis für die ganze Rechtseinheit (Swissdec PayrollUnit, Statistik).
     /// Leer = keine Aufteilung. Mehrere Kreise gibt es nicht.
     /// </summary>

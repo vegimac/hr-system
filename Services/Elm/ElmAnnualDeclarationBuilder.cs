@@ -52,10 +52,8 @@ public class ElmAnnualDeclarationBuilder
     /// </summary>
     public static LohndatenEmpfaenger? WaehleEmpfaenger(IEnumerable<LohndatenEmpfaenger> kandidaten, DateOnly stichtag, IReadOnlySet<int>? nurFilialen)
     {
-        var liste = kandidaten.ToList();
-        return liste.FirstOrDefault(e => e.Zuordnungen.Any(z => z.GiltAm(stichtag)
-                   && (nurFilialen == null || nurFilialen.Contains(z.CompanyProfileId))))
-               ?? liste.FirstOrDefault();
+        return kandidaten.FirstOrDefault(e => e.Zuordnungen.Any(z => z.GiltAm(stichtag)
+                   && (nurFilialen == null || nurFilialen.Contains(z.CompanyProfileId))));
     }
 
     public Task<BuildResult> BuildAhvAsync(int year, CancellationToken ct = default)
@@ -70,7 +68,7 @@ public class ElmAnnualDeclarationBuilder
         var warn = new List<string>();
 
         // ── Stammdaten Rechtseinheit (gemeinsam mit der Monatsmeldung) ────
-        var stamm = await LadeRechtseinheitAsync(_db, warn, ct);
+        var stamm = await LadeRechtseinheitAsync(_db, warn, ct, nurFiliale);
         if (stamm == null)
             return new BuildResult("", 0, 0, 0, 0, warn, new List<string>());
         if (nurFiliale is int cp && cp > 0)
@@ -129,13 +127,8 @@ public class ElmAnnualDeclarationBuilder
         var akKasse = (akE?.Kassennummer ?? "").Trim();
         if (string.IsNullOrEmpty(akKasse))
         {
-            var legacy = Regex.Match(main.AhvKasse ?? "", @"[\d.\-/]{3,}");
-            akKasse = legacy.Success ? legacy.Value : "";
-        }
-        if (string.IsNullOrEmpty(akKasse))
-        {
-            warn.Add("AHV-Kassen-Nummer fehlt — Platzhalter 001.234 eingesetzt (Empfänger-Katalog: Ausgleichskasse erfassen).");
-            akKasse = "001.234";
+            warn.Add("Keine Ausgleichskasse bei den Lohndaten-Empfängern zugeordnet. Bitte bei der Filiale einrichten. Es wurde keine Meldung erzeugt.");
+            return new BuildResult("", 0, 0, 0, 0, warn, new List<string>());
         }
         var akAbrechnung = GemeinsameMitgliedNr(akE) ?? "";
         if (string.IsNullOrEmpty(akAbrechnung))
@@ -966,8 +959,8 @@ public class ElmAnnualDeclarationBuilder
         var qstKassen = empf.Where(x => x.Art == "QST" && x.IsActive).ToList();
         foreach (var k in grenzSteuerbar.Keys)
         {
-            var nummer = ElmGrenzgaengerJahresBuilder.SslNummer(qstKassen, k);
-            if (nummer.Length == 0) warn.Add($"Kanton {k}: SSL-Nummer fehlt (Empfänger-Katalog QST) — im XML steht das Kantonskürzel.");
+            var nummer = ElmEmpfaengerPruefung.SslNummer(qstKassen, k, filialIds, new DateOnly(year, 1, 1), new DateOnly(year, 12, 31), stamm.JeFiliale);
+            if (nummer.Length == 0) warn.Add($"Kanton {k}: SSL-Nummer fehlt bei den Lohndaten-Empfängern. So wird nicht gesendet.");
             institutions.Add(new XElement(Sd + "TaxCrossborder",
                 new XAttribute("addresseeIDRef", "#QST-" + k),
                 new XElement(Sd + "CustomerIdentity", nummer.Length == 0 ? k : nummer),

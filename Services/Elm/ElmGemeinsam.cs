@@ -131,53 +131,45 @@ public static class ElmGemeinsam
         string SitzOrt,
         string SitzLand,
         int? SitzBfsGemeindeNr,
-        Dictionary<int, int> GemeindeNr);
+        Dictionary<int, int> GemeindeNr)
+    {
+        /// <summary>Absender ist die Filiale, nicht der Hauptsitz (Hauptsitz.LohnmeldungJeFiliale).</summary>
+        public bool JeFiliale { get; init; }
+    }
 
     /// <summary>
     /// Lädt Hauptsitz + Filialen und leitet UID, Firmenname, Sitzadresse und die
-    /// BFS-Gemeindenummern je Filiale ab. Fehlendes wird in <paramref name="warn"/>
-    /// gemeldet und mit einem klar erkennbaren Platzhalter gefüllt — nie still.
+    /// BFS-Gemeindenummern je Filiale ab. Null = keine Meldung, der Grund steht in <paramref name="warn"/>.
+    /// Wer Absender ist, bestimmt <see cref="ElmMeldeeinheit"/>.
     /// </summary>
     public static async Task<RechtseinheitStamm?> LadeRechtseinheitAsync(
-        AppDbContext db, List<string> warn, CancellationToken ct = default)
+        AppDbContext db, List<string> warn, CancellationToken ct = default, int? nurFiliale = null)
     {
-        var filialen = await db.CompanyProfiles.AsNoTracking().OrderBy(p => p.Id).ToListAsync(ct);
-        if (filialen.Count == 0)
+        var alle = await db.CompanyProfiles.AsNoTracking().OrderBy(p => p.Id).ToListAsync(ct);
+        if (alle.Count == 0)
         {
             warn.Add("Keine Filialen (CompanyProfiles) vorhanden.");
             return null;
         }
+        var hauptsitze = await db.Hauptsitze.AsNoTracking().OrderBy(h => h.Id).ToListAsync(ct);
+        var einheit = ElmMeldeeinheit.Bestimme(alle, hauptsitze, nurFiliale, warn);
+        if (einheit == null) return null;
+        var hs = einheit.Hauptsitz;
+        var filialen = einheit.Filialen;
         var haupt = filialen[0];
 
-        var hsIds = filialen.Where(b => b.HauptsitzId != null).Select(b => b.HauptsitzId!.Value).Distinct().ToList();
-        Hauptsitz? hs = null;
-        if (hsIds.Count > 0)
-        {
-            var hsList = await db.Hauptsitze.AsNoTracking().Where(h => hsIds.Contains(h.Id)).OrderBy(h => h.Id).ToListAsync(ct);
-            hs = hsList.FirstOrDefault();
-            if (hsIds.Count > 1)
-                warn.Add($"Filialen sind {hsIds.Count} verschiedenen Hauptsitzen zugeordnet — eine Meldung je Rechtseinheit kommt später; dieses XML läuft komplett unter «{hs?.Name}».");
-        }
-        else
-        {
-            hs = await db.Hauptsitze.AsNoTracking().Where(h => h.IsActive).OrderBy(h => h.Id).FirstOrDefaultAsync(ct);
-            if (hs != null)
-                warn.Add($"Keine Filiale ist einem Hauptsitz zugeordnet — es wird «{hs.Name}» verwendet (Filiale → Stammdaten bearbeiten).");
-        }
-
-        var st = await db.ElmStammdaten.AsNoTracking().OrderBy(x => x.Id).FirstOrDefaultAsync(ct);
-        var uidUnbekannt = hs?.UidUnbekannt == true
-            || ElmStammdatenPruefung.IstUidUnbekannt(hs?.Uid);
-        var uid = uidUnbekannt
-            ? ""
-            : (hs?.Uid ?? st?.Uid ?? haupt.UidBfs ?? haupt.UidNummer ?? "").Trim().ToUpperInvariant();
+        var uidUnbekannt = !einheit.JeFiliale && (hs.UidUnbekannt || ElmStammdatenPruefung.IstUidUnbekannt(hs.Uid));
+        var uid = uidUnbekannt ? ""
+            : ((einheit.JeFiliale ? haupt.UidBfs ?? haupt.UidNummer : hs.Uid) ?? "").Trim().ToUpperInvariant();
         if (!uidUnbekannt && !ElmStammdatenPruefung.UidBfsGueltig(uid))
         {
             var grund = string.IsNullOrWhiteSpace(uid) ? "fehlt"
                 : ElmStammdatenPruefung.UidBfsFehler(uid)?.Contains("Prüfziffer") == true ? "Prüfziffer falsch"
                 : "Format ungültig";
-            warn.Add($"UID {grund} («{uid}») — Platzhalter CHE-123.123.123 eingesetzt (Hauptsitz-Verwaltung: UID erfassen).");
-            uid = "CHE-123.123.123";
+            warn.Add(einheit.JeFiliale
+                ? $"Filiale «{haupt.FullDisplayName}»: UID {grund}. Bitte in den Stammdaten der Filiale erfassen. Es wurde keine Meldung erzeugt."
+                : $"Hauptsitz «{hs.Name}»: UID {grund}. Bitte in der Hauptsitz-Verwaltung erfassen. Es wurde keine Meldung erzeugt.");
+            return null;
         }
         if (uidUnbekannt)
             warn.Add("UID-BFS als «unbekannt» gemeldet (XML Unknown) — nur Ausnahme, Swissdec 4.2.");
@@ -223,22 +215,35 @@ public static class ElmGemeinsam
                        + $"(zu dieser PLZ: {string.Join(", ", treffer.Select(t2 => t2.Ortschaftsname).Distinct().Take(3))}) — bitte in den Stammdaten korrigieren.");
         }
 
-        var sitzStrasse = !string.IsNullOrWhiteSpace(hs?.Strasse)
-            ? hs!.Strasse!.Trim()
+        if (einheit.JeFiliale)
+            return new RechtseinheitStamm(
+                hs, filialen, haupt, uid, false,
+                haupt.FullDisplayName.Trim(), null, null, null,
+                StrasseMitNr(haupt.Street, haupt.HouseNumber),
+                NormLeer(haupt.Postfach),
+                NormLeer(haupt.Lokalitaet),
+                (haupt.ZipCode ?? "").Trim(),
+                (haupt.City ?? "").Trim(),
+                LandCodeIso(haupt.Country) ?? "CH",
+                haupt.BfsGemeindeNr is > 0 ? haupt.BfsGemeindeNr : null,
+                gemeindeNr) { JeFiliale = true };
+
+        var sitzStrasse = !string.IsNullOrWhiteSpace(hs.Strasse)
+            ? hs.Strasse!.Trim()
             : StrasseMitNr(haupt.Street, haupt.HouseNumber);
         return new RechtseinheitStamm(
             hs, filialen, haupt, uid, uidUnbekannt,
-            (hs?.Name ?? haupt.CompanyName ?? "").Trim(),
-            NormLeer(hs?.ZusatzAbteilung),
-            NormLeer(hs?.ZusatzAbteilung2),
-            NormLeer(hs?.AdressZusatz),
+            (hs.Name ?? "").Trim(),
+            NormLeer(hs.ZusatzAbteilung),
+            NormLeer(hs.ZusatzAbteilung2),
+            NormLeer(hs.AdressZusatz),
             sitzStrasse,
-            NormLeer(hs?.Postfach) ?? NormLeer(haupt.Postfach),
-            NormLeer(hs?.Lokalitaet) ?? NormLeer(haupt.Lokalitaet),
-            !string.IsNullOrWhiteSpace(hs?.Plz) ? hs!.Plz!.Trim() : (haupt.ZipCode ?? "").Trim(),
-            !string.IsNullOrWhiteSpace(hs?.Ort) ? hs!.Ort!.Trim() : (haupt.City ?? "").Trim(),
-            LandCodeIso(hs?.Land) ?? LandCodeIso(haupt.Country) ?? "CH",
-            hs?.BfsGemeindeNr is > 0 ? hs.BfsGemeindeNr : null,
+            NormLeer(hs.Postfach) ?? NormLeer(haupt.Postfach),
+            NormLeer(hs.Lokalitaet) ?? NormLeer(haupt.Lokalitaet),
+            !string.IsNullOrWhiteSpace(hs.Plz) ? hs.Plz!.Trim() : (haupt.ZipCode ?? "").Trim(),
+            !string.IsNullOrWhiteSpace(hs.Ort) ? hs.Ort!.Trim() : (haupt.City ?? "").Trim(),
+            LandCodeIso(hs.Land) ?? LandCodeIso(haupt.Country) ?? "CH",
+            hs.BfsGemeindeNr is > 0 ? hs.BfsGemeindeNr : null,
             gemeindeNr);
     }
 

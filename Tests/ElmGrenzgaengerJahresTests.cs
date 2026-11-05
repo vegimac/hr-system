@@ -104,6 +104,10 @@ public class ElmGrenzgaengerJahresTests
             Street = "Bahnhofstrasse", HouseNumber = "1", ZipCode = "6003", City = "Luzern",
             Country = "CH", KantonCode = "LU", NormalWeeklyHours = 42,
         };
+        var hs = new Hauptsitz { Name = "Muster AG", Uid = "CHE-999.999.996", LohnmeldungJeFiliale = false };
+        db.Hauptsitze.Add(hs);
+        await db.SaveChangesAsync();
+        filiale.HauptsitzId = hs.Id;
         db.CompanyProfiles.Add(filiale);
         var itNat = new Nationality { Code = "IT", NameDe = "Italien" };
         var frNat = new Nationality { Code = "FR", NameDe = "Frankreich" };

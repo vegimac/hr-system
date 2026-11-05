@@ -1127,6 +1127,7 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200);
+            entity.Property(e => e.LohnmeldungJeFiliale).HasColumnName("lohnmeldung_je_filiale");
             entity.Property(e => e.Uid).HasColumnName("uid").HasMaxLength(20);
             entity.Property(e => e.ZusatzAbteilung).HasColumnName("zusatz_abteilung").HasMaxLength(200);
             entity.Property(e => e.ZusatzAbteilung2).HasColumnName("zusatz_abteilung2").HasMaxLength(200);

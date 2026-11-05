@@ -42,7 +42,7 @@ Diese Dateien SIND Teil der CLAUDE.md (am 29.08.2026 unverändert ausgelagert, u
 
 ## Was das ist
 
-Schweizer HR/Lohnabrechnungs-System für Schaub Restaurants GmbH (McDonald's-Franchise mit 6 Filialen). Live unter `test.hr-srgmbh.ch`. ASP.NET Core 8 + EF Core + PostgreSQL + Single-Page-HTML/JS-Frontend (kein Build-Step).
+Schweizer HR/Lohnabrechnungs-System für Schaub Restaurants GmbH (McDonald's-Franchise mit 7 Filialen, davon Langenthal Drive unter der Schaub Systemgastronomie GmbH; die Schaub Management GmbH läuft ausserhalb von OneCrew). Live unter `test.hr-srgmbh.ch`. ASP.NET Core 8 + EF Core + PostgreSQL + Single-Page-HTML/JS-Frontend (kein Build-Step).
 
 Geschäftsdomäne: Schweizer L-GAV Gastronomie, Quellensteuer (Kreisschreiben 45), Mirus-Lohnsystem-Migration, easy@work-CSV-Import. Vertragsmodelle: **FLEX** (Stundenlohn, hiess bis 08.07.2026 «UTP» — echter Rename in Code+DB, Legacy-Alias «UTP» wird in Mappern weiter akzeptiert; ACHTUNG: absenz_typ.code='UTP' ist ein ANDERER Namensraum und blieb unangetastet), **MTP** (garantierte Stunden), **FIX** (Festpensum), **FIX-M** (Management-Festlohn).
 

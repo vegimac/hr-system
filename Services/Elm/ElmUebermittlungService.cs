@@ -1,3 +1,5 @@
+using HrSystem.Data;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
 using static HrSystem.Services.Elm.ElmGemeinsam;
@@ -48,12 +50,14 @@ public class ElmUebermittlungService
     private readonly ElmEinstellungen _einst;
     private int _emaFragenOffen;
     private readonly ElmXmlValidator _validator;
+    private readonly AppDbContext _db;
 
     public ElmUebermittlungService(ElmTransmitterClient client, ElmZertifikatStore store,
         ElmMonthlyDeclarationBuilder monat, ElmAnnualDeclarationBuilder jahr,
         ElmGrenzgaengerJahresBuilder grenz, ElmEmaBuilder ema,
-        ElmEinstellungen einstellungen, ElmXmlValidator validator)
+        ElmEinstellungen einstellungen, ElmXmlValidator validator, AppDbContext db)
     {
+        _db = db;
         _client = client;
         _store = store;
         _monat = monat;
@@ -97,6 +101,8 @@ public class ElmUebermittlungService
         List<string> Warnungen, List<string> XsdFehler)
     {
         public List<Hinweis> Plausibilitaet { get; init; } = new();
+        /// <summary>Fehlender oder unklarer Lohndaten-Empfänger: So wird nicht gesendet.</summary>
+        public List<string> EmpfaengerFehler { get; init; } = new();
     }
 
     public async Task<Vorschau> VorschauAsync(string art, int jahr, int? monat, CancellationToken ct, int? companyProfileId = null,
@@ -107,7 +113,24 @@ public class ElmUebermittlungService
         var root = XDocument.Parse(xml).Root!;
         var v = LiesVorlage(root);
         return new Vorschau(v.Art, titel, v.Adressaten, v.Uid, v.Firmenname, warn, xsd)
-        { Plausibilitaet = ElmPlausibilitaet.Pruefe(root, Periodenende(art, jahr, monat)) };
+        {
+            Plausibilitaet = ElmPlausibilitaet.Pruefe(root, Periodenende(art, jahr, monat)),
+            EmpfaengerFehler = await EmpfaengerFehlerAsync(root, art, jahr, monat, companyProfileId, ct),
+        };
+    }
+
+    /// <summary>Prüft die fertige Meldung gegen die Lohndaten-Empfänger der gewählten Filialen im Meldezeitraum.</summary>
+    private async Task<List<string>> EmpfaengerFehlerAsync(XElement root, string art, int jahr, int? monat, int? companyProfileId, CancellationToken ct)
+    {
+        var fehler = new List<string>();
+        var einheit = ElmMeldeeinheit.Bestimme(
+            await _db.CompanyProfiles.AsNoTracking().OrderBy(p => p.Id).ToListAsync(ct),
+            await _db.Hauptsitze.AsNoTracking().OrderBy(h => h.Id).ToListAsync(ct), companyProfileId, fehler);
+        if (einheit == null) return fehler;
+        var katalog = await _db.LohndatenEmpfaengers.AsNoTracking().Include(e => e.Zuordnungen).OrderBy(e => e.Id).ToListAsync(ct);
+        var bis = DateOnly.FromDateTime(Periodenende(art, jahr, monat));
+        var von = art is "monthly" or "ema" ? new DateOnly(bis.Year, bis.Month, 1) : new DateOnly(jahr, 1, 1);
+        return ElmEmpfaengerPruefung.Pruefe(root, katalog, einheit.Gewaehlt.Select(b => b.Id).ToHashSet(), von, bis, einheit.JeFiliale);
     }
 
     private static DateTime Periodenende(string art, int jahr, int? monat)
@@ -203,6 +226,10 @@ public class ElmUebermittlungService
         if (art == "ema" && _emaFragenOffen > 0)
             return new Ergebnis(false, $"{_emaFragenOffen} Frage(n) zur 100-%-Arbeitsfähigkeit sind noch offen (RL 8.6.8.2). "
                 + "Die Meldung wurde NICHT gesendet.", null, null) { Warnungen = warn };
+
+        var empfaengerFehler = await EmpfaengerFehlerAsync(XDocument.Parse(xml).Root!, art, o.Jahr, o.Monat, o.CompanyProfileId, ct);
+        if (empfaengerFehler.Count > 0)
+            return new Ergebnis(false, "Die Meldung wurde NICHT gesendet: " + string.Join(" · ", empfaengerFehler), null, null) { Warnungen = warn };
 
         var plausi = ElmPlausibilitaet.Pruefe(XDocument.Parse(xml).Root!, Periodenende(art, o.Jahr, o.Monat));
         if (plausi.Count > 0)

@@ -203,7 +203,7 @@ public class ElmVersicherungJahresmeldungTests
         Assert.Equal("V-12", inst.Element(Sd + "ContractIdentity")!.Value);
     }
 
-    static async Task<HrSystem.Data.AppDbContext> Db()
+    static async Task<HrSystem.Data.AppDbContext> Db(bool zweiFilialen = false, bool jeFiliale = false)
     {
         var db = new HrSystem.Data.AppDbContext(new Microsoft.EntityFrameworkCore.DbContextOptionsBuilder<HrSystem.Data.AppDbContext>()
             .UseInMemoryDatabase("VersElm_" + Guid.NewGuid()).Options);
@@ -213,7 +213,19 @@ public class ElmVersicherungJahresmeldungTests
             Street = "Bahnhofstrasse", HouseNumber = "1", ZipCode = "6003", City = "Luzern",
             Country = "CH", KantonCode = "LU", NormalWeeklyHours = 42,
         };
+        var hs = new HrSystem.Models.Hauptsitz { Name = "Muster AG", Uid = "CHE-999.999.996", LohnmeldungJeFiliale = jeFiliale };
+        db.Hauptsitze.Add(hs);
+        await db.SaveChangesAsync();
+        filiale.HauptsitzId = hs.Id;
+        filiale.UidBfs = "CHE-262.373.037";
         db.CompanyProfiles.Add(filiale);
+        var zweite = new HrSystem.Models.CompanyProfile
+        {
+            CompanyName = "Muster AG", BranchName = "Bern", RestaurantCode = "075", HauptsitzId = hs.Id, UidBfs = "CHE-300.834.691",
+            Street = "Marktgasse", HouseNumber = "2", ZipCode = "3011", City = "Bern",
+            Country = "CH", KantonCode = "BE", NormalWeeklyHours = 42,
+        };
+        if (zweiFilialen) db.CompanyProfiles.Add(zweite);
         var nat = new HrSystem.Models.Nationality { Code = "CH", NameDe = "Schweiz" };
         var anna = new HrSystem.Models.Employee
         {
@@ -223,37 +235,62 @@ public class ElmVersicherungJahresmeldungTests
             MaritalStatus = "ledig", EntryDate = new DateTime(2024, 1, 1), NationalityRef = nat,
         };
         db.Employees.Add(anna);
+        var beat = new HrSystem.Models.Employee
+        {
+            FirstName = "Beat", LastName = "Test", EmployeeNumber = "2", Gender = "m",
+            DateOfBirth = new DateTime(1980, 3, 4), Country = "CH", City = "Bern",
+            ZipCode = "3011", Street = "Weg 2", SocialSecurityNumber = "756.9217.0769.85",
+            MaritalStatus = "ledig", EntryDate = new DateTime(2024, 1, 1), NationalityRef = nat,
+        };
+        if (zweiFilialen) db.Employees.Add(beat);
         await db.SaveChangesAsync();
         db.Employments.Add(new HrSystem.Models.Employment
         {
             EmployeeId = anna.Id, CompanyProfileId = filiale.Id,
             ContractStartDate = new DateTime(2024, 1, 1), WeeklyHours = 42, EmploymentModel = "FIX",
         });
+        if (zweiFilialen)
+            db.Employments.Add(new HrSystem.Models.Employment
+            {
+                EmployeeId = beat.Id, CompanyProfileId = zweite.Id,
+                ContractStartDate = new DateTime(2024, 1, 1), WeeklyHours = 42, EmploymentModel = "FIX",
+            });
         db.EmployeeVersicherungCodes.AddRange(
             new HrSystem.Models.EmployeeVersicherungCode { EmployeeId = anna.Id, Art = "UVG", Code = "A1", ValidFrom = new DateOnly(2024, 1, 1), ValidTo = new DateOnly(2025, 2, 28) },
             new HrSystem.Models.EmployeeVersicherungCode { EmployeeId = anna.Id, Art = "UVG", Code = "A3", ValidFrom = new DateOnly(2025, 3, 1) },
             new HrSystem.Models.EmployeeVersicherungCode { EmployeeId = anna.Id, Art = "UVGZ", Code = "11", ValidFrom = new DateOnly(2024, 1, 1) },
             new HrSystem.Models.EmployeeVersicherungCode { EmployeeId = anna.Id, Art = "KTG", Code = "11", ValidFrom = new DateOnly(2024, 1, 1) },
             new HrSystem.Models.EmployeeVersicherungCode { EmployeeId = anna.Id, Art = "KTG", Code = "12", ValidFrom = new DateOnly(2024, 1, 1) });
-        HrSystem.Models.LohndatenEmpfaenger E(string art, string name, string nr) => new()
+        HrSystem.Models.LohndatenEmpfaenger E(string art, string name, string nr)
         {
-            Art = art, Bezeichnung = name, Kassennummer = nr, IsActive = true,
-            Zuordnungen = { new HrSystem.Models.CompanyProfileEmpfaenger
+            var e = new HrSystem.Models.LohndatenEmpfaenger
             {
-                CompanyProfileId = filiale.Id, Mitgliednummer = art == "KTG" ? "K-77" : "K-1",
-                Subnummer = art == "KTG" ? "V-12" : "V-1", IsActive = true,
-            } },
-        };
+                Art = art, Bezeichnung = name, Kassennummer = nr, IsActive = true,
+                Zuordnungen = { new HrSystem.Models.CompanyProfileEmpfaenger
+                {
+                    CompanyProfileId = filiale.Id, Mitgliednummer = art == "KTG" ? "K-77" : "K-1",
+                    Subnummer = art == "KTG" ? "V-12" : "V-1", IsActive = true,
+                } },
+            };
+            if (zweiFilialen)
+                e.Zuordnungen.Add(new HrSystem.Models.CompanyProfileEmpfaenger
+                {
+                    CompanyProfileId = zweite.Id, Mitgliednummer = jeFiliale ? "BE-2" : (art == "KTG" ? "K-77" : "K-1"),
+                    Subnummer = jeFiliale ? "BV-2" : (art == "KTG" ? "V-12" : "V-1"), IsActive = true,
+                });
+            return e;
+        }
         db.LohndatenEmpfaengers.AddRange(
             E("AUSGLEICHSKASSE", "Ausgleichskasse Luzern", "003.000"),
             E("UVG", "Backwork", "S1000"), E("UVGZ", "Backwork", "S1000"), E("KTG", "Backwork", "S1000"));
         await db.SaveChangesAsync();
 
+        foreach (var (fil, ma) in zweiFilialen ? new[] { (filiale, anna), (zweite, beat) } : new[] { (filiale, anna) })
         for (var m = 1; m <= 3; m++)
         {
             var periode = new HrSystem.Models.PayrollPeriode
             {
-                CompanyProfileId = filiale.Id, Year = 2025, Month = m, Status = "abgeschlossen",
+                CompanyProfileId = fil.Id, Year = 2025, Month = m, Status = "abgeschlossen",
                 PeriodFrom = new DateOnly(2025, m, 1), PeriodTo = new DateOnly(2025, m, DateTime.DaysInMonth(2025, m)),
                 Label = $"{m}/2025",
             };
@@ -262,7 +299,7 @@ public class ElmVersicherungJahresmeldungTests
             var nbu = m < 3 ? """{"categoryCode":"NBUV","basis":6000.00,"betrag":-60.00},""" : "";
             db.PayrollSnapshots.Add(new HrSystem.Models.PayrollSnapshot
             {
-                PayrollPeriodeId = periode.Id, EmployeeId = anna.Id, Status = "BESTAETIGT",
+                PayrollPeriodeId = periode.Id, EmployeeId = ma.Id, Status = "BESTAETIGT",
                 Brutto = 6500, Netto = 5000, SvBasisAhv = 6000, SvBasisNbuv = 6000, SvBasisKtg = 6000,
                 SlipJson = "{\"abzugLines\":[" + nbu + """
                   {"categoryCode":"AHV","basis":6000.00,"betrag":-318.00},
@@ -277,6 +314,60 @@ public class ElmVersicherungJahresmeldungTests
         return db;
     }
 
+    private static ElmAnnualDeclarationBuilder Builder(HrSystem.Data.AppDbContext db) => new(db, new ElmXmlValidator(),
+        new ElmEinstellungen(new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build()));
+
+    private static decimal AhvTotal(string xml) => System.Xml.Linq.XDocument.Parse(xml).Root!
+        .Descendants(Sd + "Total-AHV-AVS-Incomes").Sum(e => decimal.Parse(e.Value, System.Globalization.CultureInfo.InvariantCulture));
+
+    [Fact]
+    public async Task Summe_der_Filialen_ergibt_die_Gesamtmeldung()
+    {
+        await using var db = await Db(zweiFilialen: true);
+        var gesamt = await Builder(db).BuildAhvAsync(2025);
+        var ids = await db.CompanyProfiles.Select(p => p.Id).ToListAsync();
+        var a = await Builder(db).BuildAhvAsync(2025, ids[0]);
+        var b = await Builder(db).BuildAhvAsync(2025, ids[1]);
+        Assert.Empty(gesamt.XsdFehler);
+        Assert.True(AhvTotal(gesamt.Xml) > 0);
+        Assert.Equal(AhvTotal(gesamt.Xml), AhvTotal(a.Xml) + AhvTotal(b.Xml));
+    }
+
+    [Fact]
+    public async Task Je_Filiale_traegt_Name_UID_und_Nummern_der_Filiale()
+    {
+        await using var db = await Db(zweiFilialen: true, jeFiliale: true);
+        var bern = (await db.CompanyProfiles.ToListAsync()).Single(p => p.BranchName == "Bern");
+        var r = await Builder(db).BuildAhvAsync(2025, bern.Id);
+        Assert.Empty(r.XsdFehler);
+        var root = System.Xml.Linq.XDocument.Parse(r.Xml).Root!;
+        Assert.Equal("Muster AG Bern", root.Descendants().First(e => e.Name.LocalName == "HR-RC-Name").Value);
+        Assert.Equal("CHE-300.834.691", root.Descendants().First(e => e.Name.LocalName == "UID").Value);
+        Assert.Equal("BE-2", root.Descendants().First(e => e.Name.LocalName == "AK-CC-CustomerNumber").Value);
+        Assert.Single(root.Descendants().Where(e => e.Name.LocalName == "Workplace"));
+    }
+
+    [Fact]
+    public async Task Je_Filiale_ohne_Filialwahl_gibt_keine_Meldung()
+    {
+        await using var db = await Db(zweiFilialen: true, jeFiliale: true);
+        var r = await Builder(db).BuildAhvAsync(2025);
+        Assert.Equal("", r.Xml);
+        Assert.Contains(r.Warnungen, w => w.Contains("meldet je Filiale"));
+    }
+
+    [Fact]
+    public async Task Filiale_ohne_gueltige_UID_gibt_keine_Meldung()
+    {
+        await using var db = await Db(zweiFilialen: true, jeFiliale: true);
+        var bern = (await db.CompanyProfiles.ToListAsync()).Single(p => p.BranchName == "Bern");
+        bern.UidBfs = null;
+        await db.SaveChangesAsync();
+        var r = await Builder(db).BuildAhvAsync(2025, bern.Id);
+        Assert.Equal("", r.Xml);
+        Assert.DoesNotContain("CHE-123.123.123", string.Join(" ", r.Warnungen));
+    }
+
     [Fact]
     public void Empfaenger_zugeordnet_geht_vor_erster_im_Katalog()
     {
@@ -285,6 +376,6 @@ public class ElmVersicherungJahresmeldungTests
         backwork.Zuordnungen.Add(new() { CompanyProfileId = 1, IsActive = true });
         var w = HrSystem.Services.Elm.ElmAnnualDeclarationBuilder.WaehleEmpfaenger(new[] { swica, backwork }, new DateOnly(2024, 11, 30), null);
         Assert.Equal(19, w!.Id);
-        Assert.Equal(4, HrSystem.Services.Elm.ElmAnnualDeclarationBuilder.WaehleEmpfaenger(new[] { swica }, new DateOnly(2024, 11, 30), null)!.Id);
+        Assert.Null(HrSystem.Services.Elm.ElmAnnualDeclarationBuilder.WaehleEmpfaenger(new[] { swica }, new DateOnly(2024, 11, 30), null));
     }
 }

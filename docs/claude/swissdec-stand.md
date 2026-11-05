@@ -38,6 +38,16 @@ Bis das XSD im Repo liegt, bleibt jedes von uns erzeugte XML bei `schemaVersion`
 4. **Statistik-Quittung: `workIDRef` eine Stufe tiefer.** Heute sitzt `workIDRef` auf `StatisticSuccessType`, also einmal auf der ganzen Quittung. Das BFS kann damit bei Mehrfachbeschäftigung nicht pro Vertrag antworten (wie schon in ELMv5). Neu hängt `workIDRef` am `DescriptionCode`. Die ausgehende Monatsstatistik (`workIDRef` an `StatisticSalary`) ändert sich nicht. Wir lesen die Quittung nicht feldweise. Ein späterer Parser nimmt `workIDRef` vom `DescriptionCode`, und eine Person darf mehrere davon haben. Sonst ändert die Statistikdomäne nichts.
 5. **EMA-Sync: `Credentials` nachgetragen.** In `SynchronizeNotifyChanges` und in der Antwort fehlten sie. Neu liegen `Key` und `Password` (`ep:CredentialsType`) im Fall, neben `NotificationID`. Die Operation gibt es bei uns noch nicht (Etappe E7). Die übrigen Sync-Aufrufe in `ElmUebermittlung` senden Credentials schon. Beim Bau der EMA-Abfrage dasselbe Muster, nicht die alte Schema-Zeichnung. Sonst keine technische Änderung.
 
+## Lohnmeldung je Filiale oder über den Hauptsitz (Walter 05.11.2026, Schema-Stand 143)
+
+- **Einstellung:** `Hauptsitz.LohnmeldungJeFiliale`, Standard «Je Filiale», die Muster AG einmalig «Über den Hauptsitz». Nach der ersten echten Meldung im Lohnjahr fix (`ElmMeldeeinheit.EinstellungGesperrt`, Testmeldungen zählen nicht).
+- **Je Filiale:** Name, UID, Adresse und Nummern der Filiale, ohne Filialwahl keine Meldung. Vorbild ist Mirus (Test-QST 10/2026 Oftringen: Filial-UID und Filialname). Arbeitszeitmodelle, Lohnvereinbarung, Kontaktperson, Stellvertreter kommen vom Hauptsitz der Filiale.
+- **Über den Hauptsitz:** wie bisher; Zertifizierung läuft so. Mehrere Hauptsitze ohne Filialwahl: keine Meldung.
+- **Empfängerprüfung:** `ElmEmpfaengerPruefung` prüft jede fertige Meldung vor dem Senden und in der Vorschau gegen die Lohndaten-Empfänger der gewählten Filialen im Meldezeitraum. Keine Platzhalter mehr (`001.234`, `CHE-123.123.123`), kein «erster im Katalog». Lohnausweis und Statistik ohne Nummer der Filiale. Der Referenzvergleich `api/elm/ema/pruefen` läuft an dieser Prüfung vorbei.
+- **Quellensteuer:** Je Filiale nur die Nummer bei der Filiale im Zeitraum. Über den Hauptsitz weiter zuerst die zentrale Nummer (`Kassennummer`, Testmandant).
+- **Offen:** Im Cockpit bleibt die Filialwahl auch bei «Über den Hauptsitz» wie bisher, gesendet wird dann nur diese Filiale; die ganze Firma sendet «Lohnmeldungen (ELM)». Die Sperre «erst wenn alle Löhne abgeschlossen sind» ist nicht gebaut. EMA: Ein Vertrag mit Unterbruch und Folgevertrag in einer anderen Filiale wird noch als Unterbruch gemeldet; manuelle Mutationen hängen nur an der Person. Auf Test muss der Lohntest noch bestätigen, dass Muster AG unverändert bleibt.
+- **BVG Schaub:** GastroSocial steht in der Swissdec-Liste vom 01.10.2026 nicht als BVG-Empfänger, von Walter vorerst zurückgestellt. Notizen: `docs/swissdec-sitzung-2026-11-19.md`.
+
 ## 07.09.2026 abends — Testmandant Schritt 1 + 2 auf Test angelegt
 - Schritt 1 (Hauptsitz Muster AG + 6 Filialen LU/BE/VD/TI/AG/ZG) und Schritt 2 (19 Lohndaten-Empfänger inkl.
   Kassenwechsel Spida→AK Luzern per 1.1.2025, «gültig bis» 31.12.2024) sind auf der Testinstanz angelegt und geprüft.

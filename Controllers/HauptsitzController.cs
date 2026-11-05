@@ -20,7 +20,12 @@ namespace HrSystem.Controllers;
 public class HauptsitzController : ControllerBase
 {
     private readonly AppDbContext _db;
-    public HauptsitzController(AppDbContext db) => _db = db;
+    private readonly HrSystem.Services.Elm.ElmUebermittlungService _meldungen;
+    public HauptsitzController(AppDbContext db, HrSystem.Services.Elm.ElmUebermittlungService meldungen)
+    {
+        _db = db;
+        _meldungen = meldungen;
+    }
 
     public record HauptsitzDto(
         string? Name, string? Uid, bool? UidUnbekannt,
@@ -37,7 +42,7 @@ public class HauptsitzController : ControllerBase
         string? StellvertreterPostfach = null, string? StellvertreterLokalitaet = null,
         string? StellvertreterPlz = null, string? StellvertreterOrt = null,
         string? StellvertreterLand = null, string? StellvertreterUid = null,
-        string? Lohnvereinbarung = null, string? BfsBuchungskreis = null);
+        string? Lohnvereinbarung = null, string? BfsBuchungskreis = null, bool? LohnmeldungJeFiliale = null);
 
     private static string? Norm(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
@@ -82,7 +87,7 @@ public class HauptsitzController : ControllerBase
         h.ZusatzAbteilung, h.ZusatzAbteilung2, h.AdressZusatz,
         h.Strasse, h.Postfach, h.Lokalitaet,
         h.Plz, h.Ort, h.KantonCode, land = h.Land ?? "CH", h.BfsGemeindeNr,
-        h.Bemerkung, h.BfsBuchungskreis, h.Lohnvereinbarung, h.IsActive,
+        h.Bemerkung, h.BfsBuchungskreis, h.Lohnvereinbarung, h.LohnmeldungJeFiliale, h.IsActive,
         h.FixPensenErlaubt, h.FlexStundenMax, h.MtpStundenMin, h.MtpStundenMax,
         h.KontaktName, h.KontaktEmail, h.KontaktTelefon, h.KontaktMobil,
         h.StellvertreterName, h.StellvertreterInhaber, h.StellvertreterAdressZusatz,
@@ -135,6 +140,7 @@ public class HauptsitzController : ControllerBase
         if (h.BfsBuchungskreis != null && h.BfsBuchungskreis.Length > 40)
             h.BfsBuchungskreis = h.BfsBuchungskreis[..40];
         h.Lohnvereinbarung = BfsAngaben.Code(dto.Lohnvereinbarung);
+        h.LohnmeldungJeFiliale = dto.LohnmeldungJeFiliale ?? h.LohnmeldungJeFiliale;
         h.FixPensenErlaubt = NormPensen(dto.FixPensenErlaubt);
         h.FlexStundenMax = dto.FlexStundenMax;
         h.MtpStundenMin = dto.MtpStundenMin;
@@ -249,6 +255,14 @@ public class HauptsitzController : ControllerBase
 
         if (Validieren(dto, out var name, out var plz, out var ort, out var uid, out var uidUnbekannt, out var land) is { } err)
             return err;
+
+        if (dto.LohnmeldungJeFiliale is bool neu && neu != h.LohnmeldungJeFiliale)
+        {
+            var filialIds = (await _db.CompanyProfiles.AsNoTracking().Where(p => p.HauptsitzId == id).Select(p => p.Id).ToListAsync()).ToHashSet();
+            if (HrSystem.Services.Elm.ElmMeldeeinheit.EinstellungGesperrt(_meldungen.Liste(), filialIds, DateTime.Now.Year))
+                return Conflict(new { error = "LOHNMELDUNG_GESPERRT",
+                    message = $"Für {DateTime.Now.Year} wurde schon gemeldet. Die Art der Lohnmeldung lässt sich erst ab dem nächsten Jahr ändern." });
+        }
 
         var bfs = await BfsAusVerzeichnisAsync(plz, ort, land) ?? (dto.BfsGemeindeNr is > 0 ? dto.BfsGemeindeNr : null);
         dto = dto with { BfsGemeindeNr = bfs };

@@ -1,0 +1,126 @@
+using System.Xml.Linq;
+using HrSystem.Models;
+
+namespace HrSystem.Services.Elm;
+
+/// <summary>
+/// Letzte Prüfung vor dem Senden (Walter 05.11.2026): Jeder Empfänger in der Meldung muss aus den
+/// Lohndaten-Empfängern stammen und bei den gewählten Filialen im Meldezeitraum zugeordnet sein,
+/// jede Nummer muss dort hinterlegt und eindeutig sein. Sonst Warnung und kein Senden.
+/// Lohnausweis und Statistik haben keine Nummer der Filiale und bleiben aussen vor.
+/// </summary>
+public static class ElmEmpfaengerPruefung
+{
+    private static readonly Dictionary<string, string[]> Arten = new()
+    {
+        ["AHV-AVS"] = new[] { "AUSGLEICHSKASSE" },
+        ["FAK-CAF"] = new[] { "FAK" },
+        ["UVG-LAA"] = new[] { "UVG" },
+        ["UVGZ-LAAC"] = new[] { "UVGZ", "UVG" },
+        ["KTG-AMC"] = new[] { "KTG" },
+        ["BVG-LPP"] = new[] { "BVG" },
+    };
+
+    private static bool Gilt(CompanyProfileEmpfaenger z, DateOnly von, DateOnly bis)
+        => z.IsActive && (z.GueltigAb == null || z.GueltigAb <= bis) && (z.GueltigBis == null || z.GueltigBis >= von);
+
+    /// <summary>
+    /// SSL-Nummer eines Kantons. Je Filiale: nur die Nummer bei der Filiale im Zeitraum.
+    /// Über den Hauptsitz: die zentrale Nummer des Empfängers, sonst die Nummer der Zuordnung.
+    /// </summary>
+    public static string SslNummer(IEnumerable<LohndatenEmpfaenger> kassen, string kanton, IReadOnlySet<int> filialIds,
+        DateOnly von, DateOnly bis, bool jeFiliale)
+    {
+        var imKanton = kassen.Where(x => x.IsActive && string.Equals((x.KantonCode ?? "").Trim(), kanton, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (!jeFiliale)
+        {
+            var zentral = imKanton.Select(x => (x.Kassennummer ?? "").Trim()).Where(n => n.Length > 0).Distinct().ToList();
+            var nummer = zentral.FirstOrDefault(n => n.Any(char.IsDigit)) ?? zentral.FirstOrDefault();
+            if (nummer != null) return nummer;
+        }
+        var zugeordnet = imKanton.SelectMany(x => x.Zuordnungen)
+            .Where(z => filialIds.Contains(z.CompanyProfileId) && Gilt(z, von, bis))
+            .Select(z => (z.Mitgliednummer ?? "").Trim()).Where(n => n.Length > 0).Distinct().ToList();
+        return zugeordnet.Count == 1 ? zugeordnet[0] : "";
+    }
+
+    public static List<string> Pruefe(XElement meldung, IReadOnlyList<LohndatenEmpfaenger> katalog, IReadOnlySet<int> filialIds,
+        DateOnly von, DateOnly bis, bool jeFiliale)
+    {
+        var fehler = new List<string>();
+        var institutionen = meldung.Descendants().Where(e => e.Name.LocalName == "Institutions")
+            .SelectMany(i => i.Elements()).ToList();
+        var adressaten = meldung.Descendants().Where(e => e.Name.LocalName == "Addressee").ToList();
+        if (adressaten.Count == 0) fehler.Add("Die Meldung hat keinen Empfänger.");
+
+        foreach (var a in adressaten)
+        {
+            var id = (string?)a.Attribute("addresseeID") ?? "";
+            var kennung = a.Elements().FirstOrDefault(e => e.Name.LocalName == "AddresseeIdentification")?.Value.Trim() ?? "";
+            var inst = institutionen.FirstOrDefault(i => (string?)i.Attribute("addresseeIDRef") == id);
+            var domaene = inst?.Name.LocalName;
+            if (domaene is "Tax" or "Statistic" || kennung == "Statistic" || id.StartsWith("#TAX-", StringComparison.Ordinal)) continue;
+
+            if (domaene is "TaxAtSource" or "TaxCrossborder")
+            {
+                var kanton = id.StartsWith("#QST-", StringComparison.Ordinal) ? id[5..] : kennung;
+                var erwartet = SslNummer(katalog.Where(x => x.Art == "QST"), kanton, filialIds, von, bis, jeFiliale);
+                if (erwartet.Length == 0)
+                    fehler.Add($"Quellensteuer {kanton}: keine eindeutige SSL-Nummer bei den Lohndaten-Empfängern dieser Filiale.");
+                else if (Feld(inst!, "CustomerIdentity") != erwartet)
+                    fehler.Add($"Quellensteuer {kanton}: Die Nummer in der Meldung ist nicht die hinterlegte.");
+                continue;
+            }
+
+            if (domaene == null || !Arten.TryGetValue(domaene, out var arten))
+            {
+                fehler.Add($"Empfänger «{(kennung.Length > 0 ? kennung : id)}»: Bei den Lohndaten-Empfängern nicht bestimmbar.");
+                continue;
+            }
+            var name = domaene.Split('-')[0];
+            if (kennung.Length == 0)
+            {
+                fehler.Add($"{name}: Kein Lohndaten-Empfänger zugeordnet. Bitte bei der Filiale einrichten.");
+                continue;
+            }
+            var norm = ElmFakAdressierung.NormKasse(ElmFakAdressierung.KasseFuerMeldung(kennung));
+            var empfaenger = katalog.Where(x => x.IsActive && arten.Contains(x.Art)
+                    && ElmFakAdressierung.NormKasse(ElmFakAdressierung.KasseFuerMeldung(x.Kassennummer)) == norm).ToList();
+            if (empfaenger.Count == 0)
+            {
+                fehler.Add($"{name}: Empfänger {kennung} steht nicht bei den Lohndaten-Empfängern.");
+                continue;
+            }
+            var zuordnungen = empfaenger.SelectMany(x => x.Zuordnungen)
+                .Where(z => filialIds.Contains(z.CompanyProfileId) && Gilt(z, von, bis)).ToList();
+            if (zuordnungen.Count == 0)
+            {
+                fehler.Add($"{name}: Empfänger {kennung} ist dieser Filiale im Meldezeitraum nicht zugeordnet.");
+                continue;
+            }
+
+            var kunde = domaene switch
+            {
+                "AHV-AVS" => Feld(inst!, "AK-CC-CustomerNumber"),
+                "FAK-CAF" => Feld(inst!, "FAK-CAF-CustomerNumber"),
+                _ => Feld(inst!, "CustomerIdentity"),
+            };
+            var mitglieder = zuordnungen.Select(z => (z.Mitgliednummer ?? "").Trim()).Where(n => n.Length > 0).ToHashSet();
+            if (!mitglieder.Contains(kunde))
+                fehler.Add($"{name}: Keine hinterlegte Mitglied- oder Kundennummer für Empfänger {kennung}.");
+            else if (mitglieder.Count > 1 && filialIds.Count > 1)
+                fehler.Add($"{name}: Mehrere Nummern bei Empfänger {kennung}. In einer gemeinsamen Meldung gilt je Empfänger nur eine.");
+
+            if (domaene is not ("AHV-AVS" or "FAK-CAF"))
+            {
+                var vertrag = Feld(inst!, "ContractIdentity");
+                if (!zuordnungen.Any(z => (z.Subnummer ?? "").Trim() == vertrag && vertrag.Length > 0))
+                    fehler.Add($"{name}: Keine hinterlegte Vertragsnummer für Empfänger {kennung}.");
+            }
+        }
+        return fehler.Distinct().ToList();
+    }
+
+    private static string Feld(XElement inst, string name)
+        => inst.Elements().FirstOrDefault(e => e.Name.LocalName == name)?.Value.Trim() ?? "";
+}

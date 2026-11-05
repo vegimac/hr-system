@@ -2,7 +2,7 @@
 //  HAUPTSITZE / RECHTSEINHEITEN (Walter-Vorgabe 29.08.2026)
 //  System → Filialen & Benutzer → «Hauptsitze». Mehrere Hauptsitze möglich
 //  (Lizenznehmer mit 2 GmbHs); Filial-Zuordnung im Filial-Stammdaten-Modal.
-//  Die Swissdec-Meldung läuft pro Hauptsitz (UID = Meldungskopf).
+//  Lohnmeldungen laufen je Filiale oder über den Hauptsitz (Einstellung am Hauptsitz).
 // ══════════════════════════════════════════════════════════════════════
 
 let _hsList = [];
@@ -66,7 +66,9 @@ function hsRender() {
                     ${h.bemerkung ? `<div class="hs-notiz">${esc(h.bemerkung)}</div>` : ''}
                 </section>
                 <section>
-                    <div class="hs-lbl">Kontakt für Lohnmeldungen</div>
+                    <div class="hs-lbl">Lohnmeldungen</div>
+                    <div>${h.lohnmeldungJeFiliale === false ? 'Über den Hauptsitz' : 'Je Filiale'}</div>
+                    <div class="hs-lbl" style="margin-top:10px">Kontakt für Lohnmeldungen</div>
                     ${kontakt.length
                         ? kontakt.map(v => `<div class="hs-wert">${esc(v)}</div>`).join('')
                         : '<div class="hs-warn">nicht erfasst — in der Meldung erscheint der erste Admin-Benutzer</div>'}
@@ -364,6 +366,13 @@ function _hsEnsureModal() {
                     <input id="hsBfs" type="number" min="1" max="9999" readonly placeholder="aus PLZ/Ort" style="${inp};font-family:ui-monospace,Menlo,monospace;background:#f3f1ec;color:#3f3f3f;cursor:default">
                     <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Automatisch aus dem Ortschaftsverzeichnis (PLZ/Ort) — nicht editierbar.</span>
                 </label>
+                <label style="${lbl};grid-column:span 2">Lohnmeldungen laufen
+                    <select id="hsLohnmeldung" style="${inp}">
+                        <option value="filiale">Je Filiale (Name, UID und Nummern der Filiale)</option>
+                        <option value="hauptsitz">Über den Hauptsitz (alle Filialen zusammen)</option>
+                    </select>
+                    <span class="f-hint" style="display:block;margin-top:3px;font-size:11px;font-weight:400;color:#8b8b8b">Nach der ersten echten Meldung im Jahr erst ab dem nächsten Jahr änderbar.</span>
+                </label>
                 <label style="${lbl};grid-column:span 2">Lohnvereinbarung
                     <select id="hsLohnvereinbarung" style="${inp}">
                         <option value="CLA-Association">Gesamtarbeitsvertrag eines Verbands</option>
@@ -494,6 +503,7 @@ function hsOpenModal(id) {
     set('hsStrasse', h?.strasse); set('hsPostfach', h?.postfach); set('hsLokalitaet', h?.lokalitaet);
     set('hsPlz', h?.plz); set('hsOrt', h?.ort); set('hsKanton', h?.kantonCode);
     set('hsBfs', ''); set('hsBem', h?.bemerkung);
+    set('hsLohnmeldung', h?.lohnmeldungJeFiliale === false ? 'hauptsitz' : 'filiale');
     set('hsLohnvereinbarung', h?.lohnvereinbarung || 'individualContract');
     set('hsBuchungskreis', h?.bfsBuchungskreis);
     if (window.SwissUid) SwissUid.landSelectFuellen('hsLand', h?.land || 'CH');
@@ -571,6 +581,7 @@ async function hsSave() {
         land: val('hsLand') || 'CH',
         bfsGemeindeNr: Number.isFinite(bfsN) && bfsN > 0 ? bfsN : null,
         bemerkung: val('hsBem'), isActive: true,
+        lohnmeldungJeFiliale: val('hsLohnmeldung') !== 'hauptsitz',
         lohnvereinbarung: val('hsLohnvereinbarung'),
         bfsBuchungskreis: val('hsBuchungskreis'),
         fixPensenErlaubt: val('hsFixPensen'),

@@ -145,7 +145,7 @@ public class ElmMeldungenController : ControllerBase
                     a.Domain,
                     name = ElmMeldungAnzeige.EmpfaengerName(a.Domain, a.Identification, null),
                 }),
-                fehler = v.Plausibilitaet.Select(h => h.Text ?? h.Code ?? "Plausibilitätsregel verletzt"),
+                fehler = v.EmpfaengerFehler.Concat(v.Plausibilitaet.Select(h => h.Text ?? h.Code ?? "Plausibilitätsregel verletzt")),
                 technisch = v.XsdFehler,
                 warnungen = v.Warnungen,
                 sendenGesperrt = _dienst.SendenGesperrt(),

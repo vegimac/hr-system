@@ -28,6 +28,7 @@ den Swissdec-Distributor an alle Empfänger:
 
 Wichtige Grundsätze aus den Richtlinien:
 
+- **Überholt seit 05.11.2026:** Die Meldeeinheit legt der Hauptsitz fest (`Hauptsitz.LohnmeldungJeFiliale`, `ElmMeldeeinheit`). Schaub meldet je Filiale, die Muster AG über den Hauptsitz. Stand in `docs/claude/swissdec-stand.md`.
 - **Meldeeinheit = Rechtseinheit (UID)**, nicht Filiale. Schaub Restaurants
   GmbH ist EIN Arbeitgeber; die 6 Filialen werden als «Workplace»-Elemente
   geführt. Das deckt sich mit unserer Konvention «EIN AHV-Arbeitgeber»

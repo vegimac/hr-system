@@ -50,7 +50,7 @@ public class ElmEmaBuilder
 
     public async Task<Personen?> LadeAsync(int year, int month, int? nurFiliale, List<string> warn, CancellationToken ct)
     {
-        var stamm = await LadeRechtseinheitAsync(_db, warn, ct);
+        var stamm = await LadeRechtseinheitAsync(_db, warn, ct, nurFiliale);
         if (stamm == null) return null;
         if (nurFiliale is > 0)
         {

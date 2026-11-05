@@ -239,7 +239,7 @@ public class ElmMonthlyDeclarationBuilder
     public async Task<BuildResult> BuildAsync(int year, int month, int? nurFiliale, CancellationToken ct = default)
     {
         var warn = new List<string>();
-        var stamm = await LadeRechtseinheitAsync(_db, warn, ct);
+        var stamm = await LadeRechtseinheitAsync(_db, warn, ct, nurFiliale);
         if (stamm == null) return new BuildResult("", 0, 0, 0, warn, new List<string>());
 
         if (nurFiliale is int cp && cp > 0)
@@ -822,12 +822,8 @@ public class ElmMonthlyDeclarationBuilder
         var fehlendeQstNummern = new List<string>();
         foreach (var kt in qstKantone)
         {
-            var kasse = empfaenger.FirstOrDefault(x => (x.KantonCode ?? "").Trim().ToUpperInvariant() == kt);
-            var nummer = (kasse?.Kassennummer ?? "").Trim();
-            if (nummer.Length == 0)
-            {
-                nummer = (kasse?.Zuordnungen.Select(z => (z.Mitgliednummer ?? "").Trim()).FirstOrDefault(v => v.Length > 0)) ?? "";
-            }
+            var monatVon = new DateOnly(year, month, 1);
+            var nummer = ElmEmpfaengerPruefung.SslNummer(empfaenger, kt, filialIds.ToHashSet(), monatVon, monatVon.AddMonths(1).AddDays(-1), stamm.JeFiliale);
             if (nummer.Length == 0)
                 fehlendeQstNummern.Add(kt);
             institutions.Add(new XElement(Sd + "TaxAtSource",
@@ -850,7 +846,7 @@ public class ElmMonthlyDeclarationBuilder
             return new BuildResult("", 0, 0, 0,
                 new List<string> { "Keine Schuldner-/Abrechnungsnummer im Empfänger-Katalog für die Quellensteuer "
                     + string.Join(", ", fehlendeQstNummern)
-                    + ". Erfassen unter System → Behörden & Empfänger (Art «QST», Kanton, Kassennummer); ohne sie wird die Meldung zurückgewiesen." },
+                    + ". Bitte bei der Filiale unter Lohndaten Empfänger erfassen. Es wurde keine Meldung erzeugt." },
                 new List<string>());
 
         // ── Summen je QST-Kanton ─────────────────────────────────────────────
