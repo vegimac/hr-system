@@ -221,6 +221,7 @@ builder.Services.AddScoped<HrSystem.Services.Elm.ElmGrenzgaengerJahresBuilder>()
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmEmaBuilder>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmUebermittlungService>();
 builder.Services.AddScoped<HrSystem.Services.Elm.ElmMeldungenService>();
+builder.Services.AddSingleton<HrSystem.Services.Elm.ViewgenDienst>();
 builder.Services.AddScoped<HrSystem.Services.Elm.QualityToolClient>();
 builder.Services.AddHostedService<HrSystem.Services.Elm.ElmMeldungenAutoAbfrage>();       // Stand gesendeter Lohnmeldungen abholen (15.10.2026)
 builder.Services.AddScoped<AuswertungenReportPdfService>();

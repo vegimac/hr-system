@@ -536,3 +536,10 @@ Kern: `ElmBvgBasis` und `ElmEmaEreignisse` (rein, ohne Datenbank), Test `ElmEmaE
   - **Vorschlag BVG-Lohnsummen** im Cockpit = Basis nach RL 8.6.6 (`ProspectiveZeilenAsync`), nur noch wer am 1.1. versichert ist. Vorher Summe der Löhne des Jahres.
   - **EMA-Gründe** in `EmaAufgabeRegel` wie die Referenz, Schema-Stand 142 stellt `ema_freigabe` um, freigegebene Zeilen bleiben freigegeben. Die Liste selbst rechnet weiter nach eigenen Regeln, nicht über `ElmEmaEreignisse`.
   - **«No Case found»:** Empfänger kennt den Fall nicht mehr: `FallUnbekannt`, keine weiteren Abfragen. Die stündlichen Abfragen der alten Monatsmeldungen auf Refapps enden so nach der nächsten Abfrage.
+
+## Viewgen: Lohnausweis und Listen (Walter 05.11.2026)
+
+- **Entscheid:** Künftig gilt der Barcode aus Viewgen. Der eigene `LohnausweisBarcodeService` bleibt, bis Viewgen produktiv laufen darf.
+- **Lizenz (Swissdec, September 2025):** Einbau erlaubt, Viewgen bleibt unverändert, produktiv erst nach der Zertifizierung. Darum nur auf der Testinstanz offen (`ElmViewgenController`, `ViewgenDienst`, Knöpfe im Reiter Jahresmeldung). Ob Papier-Lohnausweise für eigene Leute schon «produktiv» sind, ist bei Swissdec offen.
+- **Version:** Java 2026.09 mit JDK 21 unter `/opt/viewgen` (`Scripts/viewgen-installieren.sh`, `VIEWGEN_HOME` überschreibt den Pfad). Viewgen.NET scheidet aus: PDF und Barcode brauchen Windows (`User32.dll`, Test 05.11.2026).
+- **Stolperfallen:** Rückgabewert immer 0, auch ohne PDF oder bei kaputter Signatur. `QstReport` lieferte mit Testdaten kein PDF und fehlt darum. Ohne signierte XML druckt Viewgen «Die Signatur FEHLT!». 2026.09 kennt nur Schema 6.0 (`20260306`), nicht 6.0.1.

@@ -289,8 +289,41 @@ function e2CockpitHtml() {
             <button type="button" class="e2-pille" data-e2="pruefen" ${kannPruefen && !e2.busy ? '' : 'disabled'}>${E2_B.pruefen}</button>
             <button type="button" class="e2-pille e2-primaer" data-e2="senden" ${kannSenden ? '' : 'disabled'}>${E2_B.uebermitteln}${e2.test ? ' (' + E2_B.testmeldung + ')' : ''}</button>
         </div>
+        ${jahr ? e2ViewgenHtml() : ''}
     </section>
     ${e2.historieOffen ? e2HistorieHtml() : e2UebersichtHtml()}</div>`;
+}
+
+// Viewgen: nur auf der Testinstanz, produktiv erst nach der Zertifizierung (Server prüft das ebenfalls).
+function e2ViewgenHtml() {
+    if (!window._istTestinstanz) return '';
+    if (e2.viewgen === undefined) {
+        e2.viewgen = null;
+        e2Get('/api/elm/viewgen/status').then(s => { e2.viewgen = s; e2Zeichnen(); });
+    }
+    const s = e2.viewgen;
+    if (!s) return '';
+    if (!s.installiert) return '<p class="e2-hinweis e2-warn">Viewgen ist auf diesem Server nicht installiert.</p>';
+    const knoepfe = s.berichte.map(b => `<button type="button" class="e2-pille e2-klein" data-e2="viewgen" data-wert="${e2Esc(b.plugin)}" ${e2.viewgenBusy ? 'disabled' : ''}>${e2Esc(b.name)}</button>`).join('');
+    return `<div class="e2-gruppe"><div class="e2-gruppe-kopf"><h3>PDF aus Viewgen ${e2.jahr}${e2.viewgenBusy ? ' · wird erzeugt …' : ''}</h3></div>
+        <div class="e2-aktionen">${knoepfe}</div></div>`;
+}
+
+async function e2Viewgen(plugin) {
+    e2.viewgenBusy = true; e2.hinweis = null; e2Zeichnen();
+    try {
+        const r = await fetch('/api/elm/viewgen/bericht', { method: 'POST', headers: ah(),
+            body: JSON.stringify({ plugin, jahr: e2.jahr, companyProfileId: e2FilialeId() }) });
+        if (r.ok) {
+            await previewFileModal(await r.blob(), `Viewgen-${plugin}-${e2.jahr}.pdf`);
+        } else {
+            const j = await r.json().catch(() => ({}));
+            e2.hinweis = { ok: false, text: j.message || 'Viewgen hat kein PDF geliefert.' };
+        }
+    } catch {
+        e2.hinweis = { ok: false, text: 'Server nicht erreichbar.' };
+    }
+    e2.viewgenBusy = false; e2Zeichnen();
 }
 
 // Periode: Jahr als Pillen, Monat als Raster mit dem Stand je Monat (Lohnlauf, Übermittlung).
@@ -828,6 +861,7 @@ function e2Klick(ev) {
     else if (a === 'jahr-wahl') e2JahrWahl(parseInt(el.dataset.wert, 10));
     else if (a === 'monat-wahl') e2MonatWahl(parseInt(el.dataset.wert, 10));
     else if (a === 'pruefen') e2Pruefen();
+    else if (a === 'viewgen') e2Viewgen(el.dataset.wert);
     else if (a === 'senden') e2Senden();
     else if (a === 'historie') { e2.historieOffen = !e2.historieOffen; e2Zeichnen(); }
     else if (a === 'auswahl') { e2.auswahl[e2.reiter] = el.dataset.id; e2.detail = null; e2.historieOffen = false; e2Zeichnen(); }
