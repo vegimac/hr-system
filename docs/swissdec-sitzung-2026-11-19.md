@@ -30,6 +30,7 @@ RL 8.6.8.6 und 8.6.9: Die Vorsorgeeinrichtung meldet BVG-Code, Gültig-ab und di
 **Fragen**
 1. Muss ein System diese Beiträge in den Lohn übernehmen, oder reicht die Anzeige mit Abgleich?
 2. Sind die Beträge Monats- oder Jahresbeträge?
+3. Nimmt GastroSocial BVG über ELM 6 produktiv an, und zwar je Prozess: EMA, Jahresmeldung, voraussichtliche Jahresmeldung? In Mirus ist heute kein BVG-Empfänger eingerichtet. Für Schaub wäre BVG über Swissdec neu, darum zuerst eine Testmeldung.
 
 ## 4. Aus den abgeleiteten Regeln
 
