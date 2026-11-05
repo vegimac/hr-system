@@ -56,6 +56,21 @@ public class ElmEmaController : HrControllerBase
         });
     }
 
+    /// <summary>Offene Fragen zur 100-%-Arbeitsfähigkeit (RL 8.6.8.2) eines Meldemonats. Sie sperren das Senden.</summary>
+    [HttpGet("fragen")]
+    public async Task<IActionResult> Fragen([FromQuery] int jahr, [FromQuery] int monat, [FromQuery] int companyProfileId, CancellationToken ct)
+    {
+        if (jahr < 2020 || jahr > 2100 || monat < 1 || monat > 12)
+            return BadRequest(new { error = "PERIODE_UNGUELTIG", message = "Bitte Jahr und Monat gültig angeben." });
+        return Ok(OffeneFragen(await _builder.BuildAsync(jahr, monat, companyProfileId, ct)));
+    }
+
+    private static IEnumerable<object> OffeneFragen(ElmEmaBuilder.Ergebnis r)
+        => r.Ereignisse.Where(z => z.FrageOffen).Select(z => (object)new
+        {
+            z.EmployeeId, z.Name, z.Ereignis.Art, validAsOf = z.Ereignis.ValidAsOf.ToString("yyyy-MM-dd"), monat = z.Ereignis.Monat.ToString("yyyy-MM-dd"),
+        });
+
     /// <summary>
     /// Alle hochgeladenen RefXML_JJJJ-MM_EMA.xml erzeugen und Feld für Feld vergleichen. Die Referenzen
     /// liegen nicht auf dem Server und werden nur für diesen Aufruf gelesen. Es wird nichts gesendet.
@@ -98,10 +113,7 @@ public class ElmEmaController : HrControllerBase
             {
                 monat, referenz, ereignisse = anzahl, geprueft, offen, xsdFehler = r.XsdFehler,
                 warnungen = r.Warnungen.Concat(verweise.Take(5)).ToList(),
-                fragen = r.Ereignisse.Where(z => z.FrageOffen).Select(z => new
-                {
-                    z.EmployeeId, z.Name, z.Ereignis.Art, validAsOf = z.Ereignis.ValidAsOf.ToString("yyyy-MM-dd"), monat = z.Ereignis.Monat.ToString("yyyy-MM-dd"),
-                }),
+                fragen = OffeneFragen(r),
             };
         }
         if (quellen.Count > 0)

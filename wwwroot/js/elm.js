@@ -172,6 +172,7 @@ function e2Init() {
     // Sprung aus dem To-do (Zertifikat → Konfiguration, Lohnmeldung → Aufgaben).
     if (window._elmReiter) { e2.reiter = window._elmReiter; window._elmReiter = null; }
     e2Laden();
+    e2EmaLaden();
 }
 function e2FilialeWechsel() {
     e2.filiale = e2SelektorFiliale();
@@ -184,6 +185,7 @@ function e2FilialeWechsel() {
     e2.bvg = null; e2.bvgOffen = false;
     e2.hinweis = null;
     e2Laden();
+    e2EmaLaden();
 }
 async function e2Laden() {
     e2Zeichnen();
@@ -213,9 +215,18 @@ function e2Zeichnen() {
     if (!app) return;
     let inhalt = '';
     if (e2.reiter === 'jahr' || e2.reiter === 'monat') inhalt = e2CockpitHtml();
+    else if (e2.reiter === 'ema') inhalt = '<div class="e2-scroll" id="e2EmaPlatz"></div>';
     else if (e2.reiter === 'aufgaben') inhalt = `<div class="e2-scroll">${e2AufgabenHtml()}</div>`;
     else inhalt = `<div class="e2-scroll">${e2KonfigHtml()}</div>`;
+    // Der EMA-Block liegt fest in index.html und wird nur umgehängt: Eingaben überleben das Neuzeichnen.
+    const ema = document.getElementById('e2EmaTeil');
+    if (ema) app.parentNode.appendChild(ema);
     app.innerHTML = `${e2KopfHtml()}<div class="e2-inhalt">${inhalt}</div>`;
+    const platz = document.getElementById('e2EmaPlatz');
+    if (ema) { ema.style.display = platz ? '' : 'none'; if (platz) platz.appendChild(ema); }
+}
+function e2EmaLaden() {
+    if (e2.reiter === 'ema' && typeof emaInit === 'function') emaInit();
 }
 
 // Kopf in zwei schmalen Zeilen (Walter 01.11.2026: die Seite soll nicht scrollen):
@@ -238,7 +249,7 @@ function e2KopfHtml() {
         <span class="e2-unter">${e2FilialeId() ? e2Esc(e2FilialeName()) : 'Alle Filialen'}${ziel ? ' · ' + e2Esc(ziel.name) : ''}</span>
     </header>
     <div class="e2-leiste">
-        <nav class="e2-reiterleiste">${r('monat', 'Monatsmeldung')}${r('jahr', 'Jahresmeldung')}${r('aufgaben', 'Aufgaben', offen)}${r('konfig', 'Konfiguration')}</nav>
+        <nav class="e2-reiterleiste">${r('monat', 'Monatsmeldung')}${r('jahr', 'Jahresmeldung')}${r('ema', 'EMA')}${r('aufgaben', 'Aufgaben', offen)}${r('konfig', 'Konfiguration')}</nav>
         <span class="e2-rechts">
             <span class="e2-sua-pille">
                 <button type="button" class="e2-text e2-sua-link" data-e2="reiter" data-wert="konfig" title="Zur Konfiguration"><span class="e2-punkt ${da && !bald ? 'e2-p-ok' : 'e2-p-warn'}"></span>${e2Esc(suaText)}</button>
@@ -809,7 +820,7 @@ function e2Klick(ev) {
         const neu = el.dataset.wert;
         e2.suaOffen = false;
         if (neu !== e2.reiter && (neu === 'monat' || neu === 'jahr')) e2.pruefung = null;
-        e2.reiter = neu; e2.hinweis = null; e2.detail = null; e2Zeichnen(); e2MonatAutoPruefen();
+        e2.reiter = neu; e2.hinweis = null; e2.detail = null; e2Zeichnen(); e2MonatAutoPruefen(); e2EmaLaden();
     }
     else if (a === 'aktualisieren') e2Aktualisieren();
     else if (a === 'sua-mehr') { e2.suaOffen = !e2.suaOffen; e2Zeichnen(); }

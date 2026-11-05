@@ -2730,11 +2730,6 @@
                      Behörden-Korrespondenz, die zwei Abgleiche aus «Kontrolle» hierher gezogen. -->
                 <div class="hr-hub-group" id="hrHubGrp-gastrosocial" style="display:none">
                     <div class="admin-card-grid" style="display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:16px;margin-top:18px;max-width:1360px">
-                        <div class="admin-card" onclick="showPage('ema-aufgaben')">
-                        <img src="img/vvkat-behoerden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
-                        <div class="admin-card-title">Meldungen BVG und Quellensteuer</div>
-                        <div class="admin-card-desc">Erkannte EMA-Zeilen prüfen und zur Übermittlung freigeben</div>
-                    </div>
                         <div class="admin-card" onclick="showPage('akis-meldung')">
                         <img src="img/vvkat-behoerden.webp?v=20260816a" alt="" loading="lazy" style="width:104px;height:104px;object-fit:contain;display:block;margin-bottom:6px">
                         <div class="admin-card-title">An-/Abmeldung Ausgleichskasse (AKIS)</div>
@@ -4234,49 +4229,6 @@
                         </div>
                         <div id="akisFiles" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"></div>
                         <div id="akisPreview"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ═══════════════ EMA BVG / QUELLENSTEUER ═══════════════ -->
-            <div class="page liquid-mask" id="page-ema-aufgaben">
-                <button type="button" class="seite-zurueck btn btn-outline" onclick="pageBack()" style="font-size:12px">← Zurück</button>
-                <div class="page-head">
-                    <div>
-                        <h1 class="page-title">Meldungen BVG und Quellensteuer</h1>
-                        <p class="page-sub">Erkannte Zeilen der gewählten Filiale ab 1.1.2026. Eintritt und Austritt behalten ihr Datum, jede andere Quellensteuer-Änderung gilt ab dem 1. des Folgemonats. Zur Übermittlung freigeben. Die ELM-Datei folgt später.</p>
-                    </div>
-                </div>
-                <div class="page-body">
-                    <div class="card" style="padding:20px;max-width:980px">
-                        <div id="emaPreview"></div>
-                    </div>
-                    <div class="card" style="padding:20px;max-width:980px;margin-top:14px">
-                        <h3 style="margin:0 0 6px">EMA-Meldung gegen die Referenz prüfen</h3>
-                        <p class="page-sub" style="margin:0 0 12px">Alle RefXML_…_EMA.xml und RefXML_…_PROSPECTIVE.xml aus dem Ordner SWISSCEC/RefXML wählen. Die Dateien werden nur gelesen, es wird nichts gespeichert und nichts gesendet.</p>
-                        <input type="file" id="emaRefDateien" accept=".xml" multiple style="display:none" onchange="emaRefPruefen(this)">
-                        <button type="button" class="btn btn-outline" onclick="document.getElementById('emaRefDateien').click()">Dateien wählen und prüfen</button>
-                        <div id="emaRefErgebnis" style="margin-top:12px"></div>
-                    </div>
-                    <div class="card" style="padding:20px;max-width:980px;margin-top:14px">
-                        <h3 style="margin:0 0 6px">Ereignis von Hand auslösen</h3>
-                        <p class="page-sub" style="margin:0 0 12px">Arbeitsunterbruch, Teilpensionierung und Arbeitsunfähigkeit erkennt das System nicht selbst (RL 8.6.8). Bei «Beginn nach Arbeitsunterbruch» und «Beginn Arbeitsunterbruch» gilt das Datum des Eintritts oder Austritts.</p>
-                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end">
-                            <label class="f-label">Person<select id="emaManMa" class="f-input"></select></label>
-                            <label class="f-label">Meldemonat (ein Tag darin)<input id="emaManMonat" class="f-input" type="date"></label>
-                            <label class="f-label">Ereignis<select id="emaManGrund" class="f-input">
-                                <option value="Withdrawal|interruptionOfEmployment">Beginn Arbeitsunterbruch</option>
-                                <option value="Withdrawal|interruptionOfEmploymentOnlyRisk">Beginn Arbeitsunterbruch, nur Risiko</option>
-                                <option value="Withdrawal|interruptionOfEmploymentNotInsured">Beginn Arbeitsunterbruch, nicht versichert</option>
-                                <option value="Entry|interruptionOfEmployment">Beginn nach Arbeitsunterbruch</option>
-                                <option value="Mutation|partialRetirement">Teilpensionierung</option>
-                                <option value="Mutation|incapacityToWork">Arbeitsunfähigkeit</option>
-                                <option value="Mutation|fullyFitForWork">Vollständig arbeitsfähig</option>
-                            </select></label>
-                            <label class="f-label">Gültig ab (Mutation)<input id="emaManAb" class="f-input" type="date"></label>
-                            <button type="button" class="btn btn-primary" onclick="emaManSpeichern()">Erfassen</button>
-                        </div>
-                        <div id="emaManListe" style="margin-top:12px"></div>
                     </div>
                 </div>
             </div>
@@ -6773,6 +6725,51 @@
                  Inhalt baut js/elm.js. Die Entwicklungsseite «Lohnmeldungen (ELM)» bleibt unter System. -->
             <div class="page" id="page-elm">
                 <div id="e2App"></div>
+                <!-- Reiter EMA (Walter 05.11.2026, vorher eigene Seite im HR-Bereich). elm.js hängt diesen
+                     Block in den Reiter ein: so überleben Eingaben das Neuzeichnen. Inhalt: js/ema-aufgaben.js. -->
+                <div id="e2EmaTeil" style="display:none">
+                    <section class="e2-karte">
+                        <h2>Erkannte Änderungen BVG und Quellensteuer</h2>
+                        <p class="page-sub" style="margin:6px 0 8px">Zeilen der gewählten Filiale ab 1.1.2026. Eintritt und Austritt behalten ihr Datum, jede andere Quellensteuer-Änderung gilt ab dem 1. des Folgemonats. Gesendet wird unter System → Lohnmeldungen (ELM).</p>
+                        <div id="emaPreview"></div>
+                    </section>
+                    <section class="e2-karte">
+                        <h2>100 % arbeitsfähig?</h2>
+                        <p class="page-sub" style="margin:6px 0 10px">Offene Fragen zum Meldemonat. Solange eine offen ist, wird die EMA-Meldung nicht gesendet. Auch bei hängigen Arbeitsunfähigkeitsabklärungen mit Nein antworten. Nur bei Ja wird FullyFitForWork gemeldet.</p>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,200px));gap:10px;align-items:end">
+                            <label class="f-label">Monat<select id="emaFrageMonat" class="f-input" onchange="emaFragenLaden()"></select></label>
+                            <label class="f-label">Jahr<select id="emaFrageJahr" class="f-input" onchange="emaFragenLaden()"></select></label>
+                        </div>
+                        <div id="emaFragen" style="margin-top:12px"></div>
+                    </section>
+                    <section class="e2-karte">
+                        <h2>Ereignis von Hand auslösen</h2>
+                        <p class="page-sub" style="margin:6px 0 12px">Arbeitsunterbruch, Teilpensionierung und Arbeitsunfähigkeit erkennt das System nicht selbst (RL 8.6.8). Bei «Beginn nach Arbeitsunterbruch» und «Beginn Arbeitsunterbruch» gilt das Datum des Eintritts oder Austritts.</p>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end">
+                            <label class="f-label">Person<select id="emaManMa" class="f-input"></select></label>
+                            <label class="f-label">Meldemonat (ein Tag darin)<input id="emaManMonat" class="f-input" type="date"></label>
+                            <label class="f-label">Ereignis<select id="emaManGrund" class="f-input">
+                                <option value="Withdrawal|interruptionOfEmployment">Beginn Arbeitsunterbruch</option>
+                                <option value="Withdrawal|interruptionOfEmploymentOnlyRisk">Beginn Arbeitsunterbruch, nur Risiko</option>
+                                <option value="Withdrawal|interruptionOfEmploymentNotInsured">Beginn Arbeitsunterbruch, nicht versichert</option>
+                                <option value="Entry|interruptionOfEmployment">Beginn nach Arbeitsunterbruch</option>
+                                <option value="Mutation|partialRetirement">Teilpensionierung</option>
+                                <option value="Mutation|incapacityToWork">Arbeitsunfähigkeit</option>
+                                <option value="Mutation|fullyFitForWork">Vollständig arbeitsfähig</option>
+                            </select></label>
+                            <label class="f-label">Gültig ab (Mutation)<input id="emaManAb" class="f-input" type="date"></label>
+                            <button type="button" class="btn btn-primary" onclick="emaManSpeichern()">Erfassen</button>
+                        </div>
+                        <div id="emaManListe" style="margin-top:12px"></div>
+                    </section>
+                    <section class="e2-karte">
+                        <h2>EMA-Meldung gegen die Referenz prüfen</h2>
+                        <p class="page-sub" style="margin:6px 0 12px">Alle RefXML_…_EMA.xml und RefXML_…_PROSPECTIVE.xml aus dem Ordner SWISSCEC/RefXML wählen. Die Dateien werden nur gelesen, es wird nichts gespeichert und nichts gesendet.</p>
+                        <input type="file" id="emaRefDateien" accept=".xml" multiple style="display:none" onchange="emaRefPruefen(this)">
+                        <button type="button" class="btn btn-outline" onclick="document.getElementById('emaRefDateien').click()">Dateien wählen und prüfen</button>
+                        <div id="emaRefErgebnis" style="margin-top:12px"></div>
+                    </section>
+                </div>
             </div>
 
             <!-- ═══ VIRENSCANNER (Walter-Vorgabe 08.10.2026, admin-only) ═══ -->
@@ -11347,7 +11344,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
     </div>
 </div>
 
-<script src="js/app-core.js?v=20261101u"></script>
+<script src="js/app-core.js?v=20261105a"></script>
 
 <!-- ═══════════════ MODUL-SCRIPTS Block 1 (Phase A) ═══════════════ -->
 <script src="js/liquid-select.js?v=20261101b"></script>
@@ -11361,7 +11358,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/upload-regel.js?v=20261001a"></script>
 <script type="text/plain" data-modul="js/employee-lookup-cache.js?v=20260704p"></script>
 <script type="text/plain" data-modul="js/action-menu.js?v=20260704p"></script>
-<script type="text/plain" data-modul="js/dashboard.js?v=20261102b"></script>
+<script type="text/plain" data-modul="js/dashboard.js?v=20261105a"></script>
 <script type="text/plain" data-modul="js/session-timeout.js?v=20261022e"></script>
 <script type="text/plain" data-modul="js/session-lock.js?v=20261022e"></script>
 <script type="text/plain" data-modul="js/wage-adjustment.js?v=20260720a"></script>
@@ -11449,11 +11446,11 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/virenscanner.js?v=20261022b"></script>
 <script type="text/plain" data-modul="js/elm-zertifikat.js?v=20261030b"></script>
 <script type="text/plain" data-modul="js/elm-schnittstelle.js?v=20261105c"></script>
-<script type="text/plain" data-modul="js/elm.js?v=20261105a"></script>
+<script type="text/plain" data-modul="js/elm.js?v=20261105b"></script>
 <script type="text/plain" data-modul="js/elm-lohnraster.js?v=20261021a"></script>
 <script type="text/plain" data-modul="js/lohnschema.js?v=20261024g"></script>
 <script type="text/plain" data-modul="js/global-search.js?v=20261023a"></script>
-<script type="text/plain" data-modul="js/help-panel.js?v=20261101a"></script>
+<script type="text/plain" data-modul="js/help-panel.js?v=20261105a"></script>
 <script type="text/plain" data-modul="js/i18n.js?v=20261029a"></script>
 <!-- FAMILIEN MODAL -->
 <div id="familyModal">
@@ -13344,7 +13341,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/famz-anmeldung.js?v=20261022a"></script>
 <script type="text/plain" data-modul="js/famz-gastrosocial.js?v=20261011p"></script>
 <script type="text/plain" data-modul="js/akis-meldung.js?v=20261030f"></script>
-<script type="text/plain" data-modul="js/ema-aufgaben.js?v=20261105b"></script>
+<script type="text/plain" data-modul="js/ema-aufgaben.js?v=20261105c"></script>
 <script type="text/plain" data-modul="js/manager-dienstplan.js?v=20261013b"></script>
 <script type="text/plain" data-modul="js/organigramm.js?v=20261102b"></script>
 <script type="text/plain" data-modul="js/ferien-planer.js?v=20260814b"></script>

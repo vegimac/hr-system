@@ -583,7 +583,8 @@ function dashOpenAkis() {
 }
 
 function dashOpenEma() {
-    showPage('ema-aufgaben');
+    window._elmReiter = 'ema';
+    showPage('elm');
 }
 
 /** Wochentag kurz + Datum (z.B. «Fr, 31.07.2026») — Probezeit-Todos. */

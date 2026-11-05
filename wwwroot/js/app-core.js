@@ -1549,7 +1549,15 @@ function showPage(name) {
         showPage('elm');
         return;
     }
+    // Walter 05.11.2026: «Meldungen BVG und Quellensteuer» ist jetzt der Reiter EMA im Cockpit.
+    if (name === 'ema-aufgaben') {
+        window._elmReiter = 'ema';
+        showPage('elm');
+        return;
+    }
     if (name === 'elm' && !document.body.classList.contains('elm-on')) {
+        if (window._elmReiter && typeof showToast === 'function') showToast('Das ELM Cockpit ist für dich nicht freigeschaltet.', 'error');
+        window._elmReiter = null;
         showPage('dashboard');
         return;
     }
@@ -1682,7 +1690,6 @@ function showPage(name) {
     if (name === 'ahv-anmeldung') ahvInit();
     if (name === 'famz-anmeldung' && typeof famzInit === 'function') famzInit();
     if (name === 'akis-meldung' && typeof akisInit === 'function') akisInit();
-    if (name === 'ema-aufgaben' && typeof emaInit === 'function') emaInit();
     if (name === 'manager-dienstplan' && typeof dpInit === 'function') dpInit();
     if (name === 'ferien-planer' && typeof fplInit === 'function') fplInit();
     if (name === 'schulungen-uebersicht' && typeof schulungUebersichtInit === 'function') schulungUebersichtInit();
@@ -1901,8 +1908,6 @@ function onBranchChange() {
     } else if (currentPageName === 'akis-meldung') {
         // AKIS-Meldung folgt dem globalen Filial-Selektor.
         if (typeof akisRefresh === 'function') akisRefresh();
-    } else if (currentPageName === 'ema-aufgaben') {
-        if (typeof emaRefresh === 'function') emaRefresh();
     } else if (currentPageName === 'elm') {
         if (typeof e2FilialeWechsel === 'function') e2FilialeWechsel();
     } else if (currentPageName === 'lohn-abtretungen') {

@@ -70,6 +70,12 @@ Meldungen im Stil der Swissdec-Datendrehscheibe. Du öffnest die Kachel, prüfst
 | **Versicherer / Suva** | UVG, UVGZ, KTG — die Meldung folgt noch |
 | **Vorsorgeeinrichtung (BVG)** | Jahresmeldung und Mutationen — die Meldung folgt noch |
 
+Im ELM Cockpit findest du dazu den Reiter **EMA** für Eintritte, Mutationen und Austritte (BVG und Quellensteuer):
+
+- **Erkannte Änderungen:** ab 1.1.2026. Eintritt und Austritt behalten ihr Datum. Jede andere Quellensteuer-Änderung gilt ab dem 1. des Folgemonats. Du prüfst die Zeile und gibst sie zur Übermittlung frei.
+- **100 % arbeitsfähig?:** offene Fragen zum Meldemonat. Solange eine offen ist, wird die EMA-Meldung nicht gesendet.
+- **Ereignis von Hand auslösen:** Arbeitsunterbruch, Teilpensionierung und Arbeitsunfähigkeit erkennt das System nicht selbst.
+
 Dieselben Meldungen erreichst du als Admin auch unter System → Lohn-Stammdaten → **ELM-Meldungen** und **Lohnmeldungen (ELM)**.
 
 ## Tipps

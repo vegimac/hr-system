@@ -2696,16 +2696,16 @@
       "hintergrund": "Die EMA-Meldungen mutieren mit ELMv6 zu einem Prozess mit hohem Automatisierungsgrad. Die Idee vom neuen Prozess liegt darin, dass sämtliche EMA-Meldungen vom ERP-System automatisiert erkannt werden und der Anwender nur noch die effektive Übermittlung freigeben muss. Ziel davon ist es die Anwender bei diesen Prozessen anzuleiten und Fehler auf allen Seiten zu vermeiden.",
       "direktive": "8.6.8",
       "stand": "vorhanden",
-      "kommentarQt": "BVG-Gründe stehen unter «Meldungen BVG und Quellensteuer» und in den Aufgaben. Eintritt Vorsorgeplan oder Beginn nach Arbeitsunterbruch, dazu ob die Person am Stichtag zu 100 % arbeitsfähig ist. Mutationen: Lohn, Vorsorgeplan, Wohnadresse, Zivilstand, Arbeitsunfähigkeit, vollständig arbeitsfähig. Austritt: Austritt Vorsorgeplan, Verstorben beim Austrittsgrund Todesfall, Beginn Arbeitsunterbruch wenn Krankheit oder Unfall am Ende des Plans beginnt. Das Datum ist das Datum des Auslösers. Freigabe über «Zur Übermittlung freigegeben». Teilpensionierung, nur Risiko und nicht versichert werden nicht erfunden, solange kein eigener Fakt dazu erfasst ist. Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht die ELM-Datei.",
-      "notiz": "BVG-Gründe stehen unter «Meldungen BVG und Quellensteuer» und in den Aufgaben. Eintritt Vorsorgeplan oder Beginn nach Arbeitsunterbruch, dazu ob die Person am Stichtag zu 100 % arbeitsfähig ist. Mutationen: Lohn, Vorsorgeplan, Wohnadresse, Zivilstand, Arbeitsunfähigkeit, vollständig arbeitsfähig. Austritt: Austritt Vorsorgeplan, Verstorben beim Austrittsgrund Todesfall, Beginn Arbeitsunterbruch wenn Krankheit oder Unfall am Ende des Plans beginnt. Das Datum ist das Datum des Auslösers. Freigabe über «Zur Übermittlung freigegeben». Teilpensionierung, nur Risiko und nicht versichert werden nicht erfunden, solange kein eigener Fakt dazu erfasst ist. Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht die ELM-Datei.",
+      "kommentarQt": "BVG-Gründe stehen unter «ELM Cockpit, Reiter EMA» und in den Aufgaben. Eintritt Vorsorgeplan oder Beginn nach Arbeitsunterbruch, dazu ob die Person am Stichtag zu 100 % arbeitsfähig ist. Mutationen: Lohn, Vorsorgeplan, Wohnadresse, Zivilstand, Arbeitsunfähigkeit, vollständig arbeitsfähig. Austritt: Austritt Vorsorgeplan, Verstorben beim Austrittsgrund Todesfall, Beginn Arbeitsunterbruch wenn Krankheit oder Unfall am Ende des Plans beginnt. Das Datum ist das Datum des Auslösers. Freigabe über «Zur Übermittlung freigegeben». Teilpensionierung, nur Risiko und nicht versichert werden nicht erfunden, solange kein eigener Fakt dazu erfasst ist. Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht die ELM-Datei.",
+      "notiz": "BVG-Gründe stehen unter «ELM Cockpit, Reiter EMA» und in den Aufgaben. Eintritt Vorsorgeplan oder Beginn nach Arbeitsunterbruch, dazu ob die Person am Stichtag zu 100 % arbeitsfähig ist. Mutationen: Lohn, Vorsorgeplan, Wohnadresse, Zivilstand, Arbeitsunfähigkeit, vollständig arbeitsfähig. Austritt: Austritt Vorsorgeplan, Verstorben beim Austrittsgrund Todesfall, Beginn Arbeitsunterbruch wenn Krankheit oder Unfall am Ende des Plans beginnt. Das Datum ist das Datum des Auslösers. Freigabe über «Zur Übermittlung freigegeben». Teilpensionierung, nur Risiko und nicht versichert werden nicht erfunden, solange kein eigener Fakt dazu erfasst ist. Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht die ELM-Datei.",
       "gebaut": true,
-      "seite": "ema-aufgaben",
-      "seiteLabel": "Meldungen BVG und Quellensteuer",
+      "seite": "elm",
+      "seiteLabel": "ELM Cockpit, Reiter EMA",
       "aktionen": [
         {
-          "label": "Öffnen: Meldungen BVG und Quellensteuer",
+          "label": "Öffnen: ELM Cockpit, Reiter EMA",
           "art": "seite",
-          "seite": "ema-aufgaben"
+          "seite": "elm"
         }
       ]
     },
@@ -2774,16 +2774,16 @@
       "hintergrund": "",
       "direktive": "10.7",
       "stand": "vorhanden",
-      "kommentarQt": "Quellensteuer-Gründe stehen unter «Meldungen BVG und Quellensteuer». OneCrew vergleicht aufeinanderfolgende Versionen, ohne manuelle Begründung. Eintritt in die Firma behält das Eintrittsdatum, Austritt aus der Firma das Austrittsdatum. Jede andere Änderung gilt ab dem 1. des Folgemonats. Zivilstand, wenn sich der Tarifbuchstabe ändert und dazwischen ein Zivilstand erfasst ist, sonst Arbeit des Partners. Dazu Kinderabzug, Kirchensteuer, Wechsel der Einkünfte des Partners zwischen CH und EX, Kantonswechsel, Wohnadresse, Niederlassung C, Einbürgerung und Andere. Freigabe über «Zur Übermittlung freigegeben». Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht das XML.",
-      "notiz": "Quellensteuer-Gründe stehen unter «Meldungen BVG und Quellensteuer». OneCrew vergleicht aufeinanderfolgende Versionen, ohne manuelle Begründung. Eintritt in die Firma behält das Eintrittsdatum, Austritt aus der Firma das Austrittsdatum. Jede andere Änderung gilt ab dem 1. des Folgemonats. Zivilstand, wenn sich der Tarifbuchstabe ändert und dazwischen ein Zivilstand erfasst ist, sonst Arbeit des Partners. Dazu Kinderabzug, Kirchensteuer, Wechsel der Einkünfte des Partners zwischen CH und EX, Kantonswechsel, Wohnadresse, Niederlassung C, Einbürgerung und Andere. Freigabe über «Zur Übermittlung freigegeben». Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht das XML.",
+      "kommentarQt": "Quellensteuer-Gründe stehen unter «ELM Cockpit, Reiter EMA». OneCrew vergleicht aufeinanderfolgende Versionen, ohne manuelle Begründung. Eintritt in die Firma behält das Eintrittsdatum, Austritt aus der Firma das Austrittsdatum. Jede andere Änderung gilt ab dem 1. des Folgemonats. Zivilstand, wenn sich der Tarifbuchstabe ändert und dazwischen ein Zivilstand erfasst ist, sonst Arbeit des Partners. Dazu Kinderabzug, Kirchensteuer, Wechsel der Einkünfte des Partners zwischen CH und EX, Kantonswechsel, Wohnadresse, Niederlassung C, Einbürgerung und Andere. Freigabe über «Zur Übermittlung freigegeben». Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht das XML.",
+      "notiz": "Quellensteuer-Gründe stehen unter «ELM Cockpit, Reiter EMA». OneCrew vergleicht aufeinanderfolgende Versionen, ohne manuelle Begründung. Eintritt in die Firma behält das Eintrittsdatum, Austritt aus der Firma das Austrittsdatum. Jede andere Änderung gilt ab dem 1. des Folgemonats. Zivilstand, wenn sich der Tarifbuchstabe ändert und dazwischen ein Zivilstand erfasst ist, sonst Arbeit des Partners. Dazu Kinderabzug, Kirchensteuer, Wechsel der Einkünfte des Partners zwischen CH und EX, Kantonswechsel, Wohnadresse, Niederlassung C, Einbürgerung und Andere. Freigabe über «Zur Übermittlung freigegeben». Ereignisse vor dem 1.1.2026 bleiben aussen vor. Systemtest = Visualisierung, nicht das XML.",
       "gebaut": true,
-      "seite": "ema-aufgaben",
-      "seiteLabel": "Meldungen BVG und Quellensteuer",
+      "seite": "elm",
+      "seiteLabel": "ELM Cockpit, Reiter EMA",
       "aktionen": [
         {
-          "label": "Öffnen: Meldungen BVG und Quellensteuer",
+          "label": "Öffnen: ELM Cockpit, Reiter EMA",
           "art": "seite",
-          "seite": "ema-aufgaben"
+          "seite": "elm"
         }
       ]
     },

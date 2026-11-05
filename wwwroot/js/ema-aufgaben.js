@@ -1,22 +1,22 @@
-// EMA BVG und Quellensteuer (Walter 30.10.2026).
+// EMA BVG und Quellensteuer (Walter 30.10.2026), seit 05.11.2026 Reiter «EMA» im ELM Cockpit.
 // Die Zeilen kommen aus den erfassten Daten. Freigabe merkt «zur Übermittlung».
-// Die ELM-Datei selbst ist Etappe E7.
+// Gesendet wird unter Lohnmeldungen (ELM).
 
-function emaInit() { emaRefresh(); emaManInit(); }
+function emaInit() { emaRefresh(); emaManInit(); emaFragenInit(); }
 
 async function emaRefresh() {
     const el = document.getElementById('emaPreview');
     if (!el) return;
     const cid = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
-    if (!cid) { el.innerHTML = '<div style="color:#8b8b8b;padding:8px;font-size:12.5px">Bitte oben links eine Filiale wählen.</div>'; return; }
-    el.innerHTML = '<div style="color:#8b8b8b;padding:14px;font-size:12.5px">Wird geladen…</div>';
+    if (!cid) { el.innerHTML = '<div style="color:var(--oc-text-3);padding:8px;font-size:12.5px">Bitte oben links eine Filiale wählen.</div>'; return; }
+    el.innerHTML = '<div style="color:var(--oc-text-3);padding:14px;font-size:12.5px">Wird geladen…</div>';
     try {
         const res = await fetch('/api/ema-aufgabe/preview?companyProfileId=' + cid, { headers: ah(), cache: 'no-store' });
-        if (!res.ok) { el.innerHTML = '<div style="color:#991b1b;padding:14px;font-size:12.5px">Laden fehlgeschlagen.</div>'; return; }
+        if (!res.ok) { el.innerHTML = '<div style="color:var(--oc-rot-text);padding:14px;font-size:12.5px">Laden fehlgeschlagen.</div>'; return; }
         _emaDaten = await res.json();
         _emaRender(_emaDaten);
     } catch (_) {
-        el.innerHTML = '<div style="color:#991b1b;padding:14px;font-size:12.5px">Verbindungsfehler.</div>';
+        el.innerHTML = '<div style="color:var(--oc-rot-text);padding:14px;font-size:12.5px">Verbindungsfehler.</div>';
     }
 }
 
@@ -27,14 +27,14 @@ function _emaRender(d) {
     const block = (titel, rows, domaene) => {
         const offen = (rows || []).filter(r => !r.gemeldet);
         const erledigt = (rows || []).filter(r => r.gemeldet);
-        const zeile = (r) => `<tr style="border-bottom:1px solid rgba(60,55,48,0.08)">
+        const zeile = (r) => `<tr style="border-bottom:1px solid var(--oc-rand-schwach)">
             <td style="padding:6px 8px;font-weight:600"><a href="#" style="color:inherit;text-decoration:none"
                 onclick="emaMaOeffnen(${r.employeeId});return false">${esc(r.vorname)} ${esc(r.name)}</a></td>
             <td style="padding:6px 8px">${esc(r.text)}</td>
-            <td style="padding:6px 8px;color:#646464">${esc(r.zusatz)}</td>
+            <td style="padding:6px 8px;color:var(--oc-text-2)">${esc(r.zusatz)}</td>
             <td style="padding:6px 8px;font-weight:600;white-space:nowrap">${esc(r.datum)}</td>
             <td style="padding:6px 8px;text-align:right;white-space:nowrap">${r.gemeldet
-                ? `<span style="color:#166534;font-weight:600">✓ freigegeben ${esc(r.gemeldet.am)}</span>
+                ? `<span style="color:var(--oc-ok-text);font-weight:600">✓ freigegeben ${esc(r.gemeldet.am)}</span>
                    <button class="dok-menu-btn" style="min-width:auto;padding:1px 7px;font-size:11px;margin-left:4px" title="Rückgängig"
                            onclick="emaZurueck(${r.gemeldet.id})">↩</button>`
                 : `<button class="akis-gemeldet-btn" onclick="emaFreigeben('${domaene}', ${r.employeeId}, '${esc(r.grund)}', '${esc(r.datumIso)}', this)">Zur Übermittlung freigegeben</button>`
@@ -42,17 +42,17 @@ function _emaRender(d) {
         </tr>`;
         const kopf = `<div style="font-size:13px;font-weight:700;margin:16px 0 6px">${titel}</div>`;
         if (!offen.length && !erledigt.length)
-            return kopf + '<div style="color:#8b8b8b;font-size:12.5px;padding:4px 0 8px">Keine Zeile in dieser Filiale.</div>';
+            return kopf + '<div style="color:var(--oc-text-3);font-size:12.5px;padding:4px 0 8px">Keine Zeile in dieser Filiale.</div>';
         const tabelle = (list) => `<table style="width:100%;border-collapse:collapse;font-size:12.5px">${list.map(zeile).join('')}</table>`;
         return kopf
-            + (offen.length ? tabelle(offen) : '<div style="color:#166534;padding:4px 0 8px;font-size:12.5px">✓ nichts offen</div>')
-            + (erledigt.length ? `<details style="margin:6px 0 4px"><summary style="cursor:pointer;font-size:12px;color:#8b8b8b">✓ ${erledigt.length} bereits freigegeben</summary>${tabelle(erledigt)}</details>` : '');
+            + (offen.length ? tabelle(offen) : '<div style="color:var(--oc-ok-text);padding:4px 0 8px;font-size:12.5px">✓ nichts offen</div>')
+            + (erledigt.length ? `<details style="margin:6px 0 4px"><summary style="cursor:pointer;font-size:12px;color:var(--oc-text-3)">✓ ${erledigt.length} bereits freigegeben</summary>${tabelle(erledigt)}</details>` : '');
     };
     el.innerHTML = block('BVG', d.bvg, 'BVG') + block('Quellensteuer', d.qst, 'QST');
 }
 
 function emaMaOeffnen(empId) {
-    window._ruecksprung = { seite: 'mitarbeiter', ziel: 'ema-aufgaben', vorher: window._prevPageName };
+    window._ruecksprung = { seite: 'mitarbeiter', ziel: 'elm', vorher: window._prevPageName };
     dashOpenEmployee(empId);
 }
 
@@ -117,8 +117,8 @@ async function emaRefPruefen(input) {
         el.innerHTML = '<table class="data-table" style="width:100%"><thead><tr><th>Monat</th><th style="text-align:right">Ereignisse</th>'
             + '<th style="text-align:right">Felder</th><th style="text-align:right">Offen</th><th>Hinweise</th></tr></thead>'
             + `<tbody>${zeilen}</tbody></table>`
-            + '<button type="button" class="btn btn-outline" style="margin-top:10px" onclick="emaRefBerichtLaden()">Bericht herunterladen</button>'
-            + emaFragenHtml(d.monate.flatMap(m => m.fragen));
+            + '<button type="button" class="btn btn-outline" style="margin-top:10px" onclick="emaRefBerichtLaden()">Bericht herunterladen</button>';
+        emaFragenZeigen(d.monate.flatMap(m => m.fragen));
     } catch (_) {
         el.textContent = 'Verbindungsfehler.';
     }
@@ -136,44 +136,103 @@ function emaRefBerichtLaden() {
 
 // 100-%-Arbeitsfähigkeit bei BVG-Eintritt und -Austritt (RL 8.6.8.2).
 let _emaFragen = [];
+let _emaFragenLauf = 0;
 
-function emaFragenHtml(fragen) {
+function emaFragenInit() {
+    const m = document.getElementById('emaFrageMonat');
+    const j = document.getElementById('emaFrageJahr');
+    if (!m || !j) return;
+    if (!m.options.length) {
+        // Vormonat: der jüngste Monat, der gemeldet werden kann.
+        const v = new Date(); v.setDate(1); v.setMonth(v.getMonth() - 1);
+        const namen = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+        m.innerHTML = namen.map((n, i) => `<option value="${i + 1}">${n}</option>`).join('');
+        m.value = String(v.getMonth() + 1);
+        const heute = new Date().getFullYear();
+        j.innerHTML = [heute, heute - 1, heute - 2].map(y => `<option value="${y}">${y}</option>`).join('');
+        j.value = String(v.getFullYear());
+    }
+    emaFragenLaden();
+}
+
+async function emaFragenLaden() {
+    const el = document.getElementById('emaFragen');
+    if (!el) return;
+    const lauf = ++_emaFragenLauf;
+    const cid = (typeof fixedCompanyProfileId !== 'undefined') ? fixedCompanyProfileId : null;
+    if (!cid) { _emaFragen = []; el.innerHTML = '<div style="color:var(--oc-text-3);font-size:12.5px">Bitte oben links eine Filiale wählen.</div>'; return; }
+    el.innerHTML = '<div style="color:var(--oc-text-3);font-size:12.5px">Wird geladen…</div>';
+    const q = new URLSearchParams({ jahr: document.getElementById('emaFrageJahr').value, monat: document.getElementById('emaFrageMonat').value, companyProfileId: cid });
+    try {
+        const res = await fetch('/api/elm/ema/fragen?' + q, { headers: ah(), cache: 'no-store' });
+        if (lauf !== _emaFragenLauf) return;
+        if (!res.ok) { el.innerHTML = '<div style="color:var(--oc-rot-text);font-size:12.5px">Laden fehlgeschlagen.</div>'; return; }
+        emaFragenZeigen(await res.json());
+    } catch (_) {
+        if (lauf === _emaFragenLauf) el.innerHTML = '<div style="color:var(--oc-rot-text);font-size:12.5px">Verbindungsfehler.</div>';
+    }
+}
+
+function emaFragenZeigen(fragen) {
+    _emaFragenLauf++;
     _emaFragen = fragen;
-    if (!fragen.length) return '';
-    const zeilen = fragen.map((f, i) => `<tr id="emaFrage${i}"><td>${emaRefText(f.name)}</td>`
+    const el = document.getElementById('emaFragen');
+    if (!el) return;
+    if (!fragen.length) { el.innerHTML = '<div style="color:var(--oc-ok-text);font-size:12.5px">✓ Keine Frage offen.</div>'; return; }
+    const zeilen = fragen.map((f, i) => `<tr><td>${emaRefText(f.name)}</td>`
         + `<td>${f.art === 'Entry' ? 'Eintritt' : 'Austritt'}</td><td>${f.validAsOf.split('-').reverse().join('.')}</td>`
         + `<td style="text-align:right;white-space:nowrap"><button type="button" class="btn btn-outline" onclick="emaFrageAntwort(${i},'ja')">Ja</button> `
         + `<button type="button" class="btn btn-outline" onclick="emaFrageAntwort(${i},'nein')">Nein</button></td></tr>`).join('');
-    return `<h4 style="margin:18px 0 6px">100 % arbeitsfähig? (${fragen.length} offen)</h4>`
-        + '<p class="page-sub" style="margin:0 0 8px">Auch bei hängigen Arbeitsunfähigkeitsabklärungen mit Nein antworten. Nur bei Ja wird FullyFitForWork gemeldet.</p>'
+    el.innerHTML = `<div style="font-weight:600;margin-bottom:8px">${fragen.length} offen</div>`
         + '<button type="button" class="btn btn-outline" style="margin-bottom:8px" onclick="emaFragenAlleJa()">Alle mit Ja beantworten</button>'
         + `<table class="data-table" style="width:100%"><tbody>${zeilen}</tbody></table>`;
 }
 
 async function emaFrageSenden(f, antwort) {
-    const res = await fetch('/api/elm/ema/manuell', { method: 'POST', headers: ah(), body: JSON.stringify({ employeeId: f.employeeId, monat: f.monat, art: 'Fit', grund: antwort, validAsOf: f.validAsOf }) });
-    return res.ok;
+    try {
+        const res = await fetch('/api/elm/ema/manuell', { method: 'POST', headers: ah(), body: JSON.stringify({ employeeId: f.employeeId, monat: f.monat, art: 'Fit', grund: antwort, validAsOf: f.validAsOf }) });
+        return res.ok;
+    } catch (_) { return false; }
 }
 
 async function emaFrageAntwort(i, antwort) {
-    if (await emaFrageSenden(_emaFragen[i], antwort)) document.getElementById('emaFrage' + i)?.remove();
+    const f = _emaFragen[i];
+    if (!f) return;
+    if (!await emaFrageSenden(f, antwort)) { showToast('Speichern fehlgeschlagen.', 'error'); return; }
+    emaFragenZeigen(_emaFragen.filter(x => x !== f));
 }
 
 async function emaFragenAlleJa() {
     if (!await liquidConfirm(`Alle ${_emaFragen.length} Personen als 100 % arbeitsfähig erfassen?`)) return;
-    for (let i = 0; i < _emaFragen.length; i++) await emaFrageAntwort(i, 'ja');
+    const offen = [];
+    for (const f of _emaFragen) if (!await emaFrageSenden(f, 'ja')) offen.push(f);
+    if (offen.length) showToast(`${offen.length} Antworten konnten nicht gespeichert werden.`, 'error');
+    emaFragenZeigen(offen);
 }
 
 // Ereignisse, die RL 8.6.8 dem Anwender überlässt.
+let _emaManAlle = null;
+
+// Personen der gewählten Filiale, auch ausgetretene: Das Ereignis kann zu einem Austritt gehören.
 async function emaManInit() {
     const sel = document.getElementById('emaManMa');
-    if (!sel || sel.options.length) return;
+    if (!sel) return;
     try {
-        const res = await fetch('/api/employees', { headers: ah(), cache: 'no-store' });
-        const liste = res.ok ? await res.json() : [];
-        liste.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+        if (!_emaManAlle) {
+            const res = await fetch('/api/employees', { headers: ah(), cache: 'no-store' });
+            if (!res.ok) return;
+            _emaManAlle = await res.json();
+            _emaManAlle.sort((a, b) => (a.firstName || '').localeCompare(b.firstName || ''));
+        }
+        const cid = (typeof fixedCompanyProfileId !== 'undefined') ? Number(fixedCompanyProfileId) || 0 : 0;
+        const inFiliale = (e) => !cid || !(e.employments || []).length
+            || e.employments.some(v => v.companyProfileId === cid || v.companyProfileId == null);
+        const vorher = sel.value;
+        const liste = _emaManAlle.filter(inFiliale);
         sel.innerHTML = '<option value="">Bitte wählen</option>' + liste.map(e => `<option value="${e.id}">${emaRefText((e.firstName || '') + ' ' + (e.lastName || ''))}</option>`).join('');
+        sel.value = liste.some(e => String(e.id) === vorher) ? vorher : '';
         sel.onchange = emaManListe;
+        emaManListe();
     } catch (_) { /* Liste bleibt leer, Erfassen meldet es */ }
 }
 

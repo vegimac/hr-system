@@ -4,9 +4,6 @@ Unter **HR → GastroSocial** liegen Ausgleichskasse, Familienzulagen und die be
 
 ## Die Kacheln
 
-### Meldungen BVG und Quellensteuer
-Zeigt erkannte Änderungen ab 1.1.2026. Eintritt und Austritt behalten ihr Datum. Jede andere Quellensteuer-Änderung gilt ab dem 1. des Folgemonats. Du prüfst die Zeile und gibst sie zur Übermittlung frei.
-
 ### An-/Abmeldung Ausgleichskasse (AKIS)
 Eintritte, Austritte und Kantonswechsel, die noch nicht als gemeldet vermerkt sind. Der Arbeitskanton ist der Kanton der Filiale. Offene stehen oben. Angekreuzte Zeilen mit AHV-Nummer kommen in die Excel (Anmeldung bzw. Abmeldung). Den Kantonswechsel meldest du im AKISnet. «Im AKISnet gemeldet» merkt sich die abgehakten Zeilen.
 
