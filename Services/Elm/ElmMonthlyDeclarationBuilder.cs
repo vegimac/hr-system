@@ -1382,7 +1382,7 @@ public class ElmMonthlyDeclarationBuilder
 
         var aperiodisch = aperiodischeCodes == null ? 0m : SummeCodes(slip, aperiodischeCodes);
         var ehepartner = TarifMitEhepartner(code)
-            ? Ehepartner(e, partner, partnerAdresse, warn, DateOnly.FromDateTime(monatsEnde), partnerArbeitsort)
+            ? Ehepartner(e, partner, partnerAdresse, warn, DateOnly.FromDateTime(monatsEnde), partnerArbeitsort, wohnAmStichtag)
             : null;
 
         var x = new XElement(Sd + "TaxAtSourceSalary",
@@ -1620,7 +1620,7 @@ public class ElmMonthlyDeclarationBuilder
     /// Null + Hinweis, wenn kein Ehepartner erfasst ist.
     /// </summary>
     public static XElement? Ehepartner(Employee e, EmployeeFamilyMember? p, EmployeeAddress? eigeneAdresse, List<string> warn, DateOnly? stichtag = null,
-                                       string? arbeitsortAmStichtag = null)
+                                       string? arbeitsortAmStichtag = null, PersonAdresseAm? wohnAmStichtag = null)
     {
         if (p == null)
         {
@@ -1638,6 +1638,12 @@ public class ElmMonthlyDeclarationBuilder
         {
             strasse = eigeneAdresse.Street; plz = eigeneAdresse.ZipCode; ort = eigeneAdresse.City;
             land = eigeneAdresse.Country; kanton = eigeneAdresse.Canton;
+        }
+        else if (wohnAmStichtag != null)
+        {
+            // Im Haushalt: die Wohnadresse im Meldemonat, nicht die von heute.
+            strasse = wohnAmStichtag.Street; plz = wohnAmStichtag.Zip; ort = wohnAmStichtag.City;
+            land = wohnAmStichtag.Country; kanton = wohnAmStichtag.Canton;
         }
         else
         {

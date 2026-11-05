@@ -218,6 +218,19 @@ public class ElmMonatJanuar2025Tests
     }
 
     [Fact]
+    public void Ehepartner_im_Haushalt_hat_die_Wohnadresse_des_Meldemonats()
+    {
+        var e = new HrSystem.Models.Employee { FirstName = "Roland", LastName = "Roos", Street = "Blockweg 2", ZipCode = "3007", City = "Bern", CantonCode = "BE", Country = "CH" };
+        var p = new HrSystem.Models.EmployeeFamilyMember { FirstName = "Melanie", LastName = "Roos", DateOfBirth = new DateTime(1972, 6, 12) };
+        var damals = new ElmGemeinsam.PersonAdresseAm("Via Ospedale 10", "6500", "Bellinzona", "CH", "TI");
+        var mp = ElmMonthlyDeclarationBuilder.Ehepartner(e, p, null, new List<string>(), new DateOnly(2025, 6, 30), null, damals)!;
+        var text = mp.ToString();
+        Assert.Contains("Via Ospedale 10", text);
+        Assert.Contains(">TI<", text);
+        Assert.DoesNotContain("Blockweg", text);
+    }
+
+    [Fact]
     public void Ehepartner_im_Haushalt_hat_Adresse_des_MA_und_Arbeitsort()
     {
         // TF24 Utzinger (ab Okt 2025 Tarif C): gleiche Adresse, erwerbstätig im TI ab 20.09.2025

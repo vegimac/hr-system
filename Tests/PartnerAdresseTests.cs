@@ -23,6 +23,14 @@ public class PartnerAdresseTests
     }
 
     [Fact]
+    public void Vor_der_ersten_eigenen_Adresse_lebt_die_Person_im_Haushalt()
+    {
+        var verlauf = new[] { A(3, "Como", new DateOnly(2025, 9, 1)) };
+        Assert.Null(PartnerAdresse.Am(Partnerin, verlauf, new DateOnly(2025, 6, 30)));
+        Assert.Equal("Como", PartnerAdresse.Am(Partnerin, verlauf, new DateOnly(2025, 9, 30))!.City);
+    }
+
+    [Fact]
     public void Fremde_Adressen_zaehlen_nicht()
     {
         // TF35 Roos darf nie die Adresse von Maldinis Partnerin bekommen.

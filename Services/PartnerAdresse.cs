@@ -15,16 +15,20 @@ public static class PartnerAdresse
 
     /// <summary>
     /// Gültige Partner-Adresse am Stichtag: jüngste mit Gültig-ab ≤ Stichtag (leer = seit jeher).
-    /// Liegt der Stichtag vor allen datierten Einträgen, gilt der älteste. Ohne Verlauf die
-    /// verknüpfte Adresse des Familienmitglieds. Null = lebt im Haushalt bzw. keine Adresse.
+    /// Liegt der Stichtag vor allen datierten Einträgen, lebte die Person noch im Haushalt: null,
+    /// es gilt die Wohnadresse des Mitarbeiters in jenem Monat (Walter 05.11.2026, TF35 Roos, TF36 Maldini Juni 2025).
+    /// Ohne Verlauf die verknüpfte Adresse des Familienmitglieds. Null = lebt im Haushalt bzw. keine Adresse.
     /// </summary>
     public static EmployeeAddress? Am(EmployeeFamilyMember? partner, IEnumerable<EmployeeAddress> adressen, DateOnly stichtag)
     {
         // Im Haushalt ohne eigene verknüpfte Adresse = Adresse des Mitarbeiters (LebtImHaushalt ist
         // standardmässig true, darum zählt erst die fehlende Verknüpfung).
         if (partner == null || (partner.LebtImHaushalt && partner.AlternativeAddressId == null)) return null;
-        return AmVerlauf(partner.EmployeeId, adressen, stichtag)
-            ?? (partner.AlternativeAddressId is int id ? adressen.FirstOrDefault(a => a.Id == id) : null);
+        var liste = adressen.ToList();
+        if (liste.Any(a => a.EmployeeId == partner.EmployeeId && a.AddressType == Typ))
+            return liste.Where(a => a.EmployeeId == partner.EmployeeId && a.AddressType == Typ && (a.ValidFrom == null || a.ValidFrom <= stichtag))
+                .OrderBy(a => a.ValidFrom == null ? 0 : 1).ThenBy(a => a.ValidFrom).ThenBy(a => a.Id).LastOrDefault();
+        return partner.AlternativeAddressId is int id ? liste.FirstOrDefault(a => a.Id == id) : null;
     }
 
     /// <summary>Nur der Verlauf «Adresse Ehepartner» dieses Mitarbeiters am Stichtag (null = kein Verlauf).</summary>

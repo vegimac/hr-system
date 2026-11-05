@@ -33,6 +33,10 @@ RL 8.6.8.6 und 8.6.9: Die Vorsorgeeinrichtung meldet BVG-Code, Gültig-ab und di
 3. Die Swissdec-Empfängerliste (Datei vom 01.10.2026) führt GastroSocial mit UVG, UVGZ und KTG, die Spalte BVG ist leer. Eine Pensionskasse GastroSocial fanden wir dort nicht. GastroSocial nennt für BVG das Portal connect. Ist eine Anbindung über den Distributor geplant? Bis dahin läuft BVG für Schaub nicht über ELM.
 4. Gilt die Zertifizierung für BVG mit der Testfirma auch dann, wenn BVG im ersten Produktivbetrieb nicht gesendet wird?
 
-## 4. Aus den abgeleiteten Regeln
+## 4. Gelbes Dreieck im Quality Tool
+
+2024-11, catchAll, BE, YearlyRetrospective. Die Abweichungen stammen aus der ersten Sendung vom 04.11.2026 16:01; die Sendungen um 16:08, 16:33 und 16:49 zeigen keine. **Frage:** Zählt die letzte Sendung, und lässt sich das Gelb zurücksetzen?
+
+## 5. Aus den abgeleiteten Regeln
 
 Die 13 Fragen im Entwurf in `docs/swissdec-abgeleitete-regeln.md`, soweit bis zur Sitzung noch offen.
