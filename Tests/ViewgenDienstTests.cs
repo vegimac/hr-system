@@ -72,7 +72,7 @@ public class ViewgenDienstTests : IDisposable
     [Fact]
     public async Task Unbekannter_Bericht_startet_nichts()
     {
-        var r = await Dienst("touch \"" + _ordner + "/gestartet\"").ErzeugePdfAsync("<x/>", "QstReport");
+        var r = await Dienst("touch \"" + _ordner + "/gestartet\"").ErzeugePdfAsync("<x/>", "GibtEsNicht");
         Assert.Null(r.Pdf);
         Assert.False(File.Exists(Path.Combine(_ordner, "gestartet")));
     }
