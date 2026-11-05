@@ -93,7 +93,7 @@ public class ElmUebermittlungService
     public record SubscribeOptionen(
         string? Uid, string? Firmenname, string? Kontakt, string? AddresseeIdentification, string? Domain,
         string? Plz, string? Ort, string? Versicherer, string? Kundennummer, string? Vertragsnummer,
-        bool TestCase = true, bool DoppeltSignieren = true);
+        bool TestCase = true, bool DoppeltSignieren = true, int? CompanyProfileId = null);
 
     // ── Vorschau ─────────────────────────────────────────────────────────
 
@@ -562,6 +562,7 @@ public class ElmUebermittlungService
         var v = new ElmVorgang
         {
             Art = "subscribe",
+            CompanyProfileId = o.CompanyProfileId,
             Titel = $"Anmeldung {domain} {ident}" + (o.TestCase ? " · TestCase" : ""),
             TestCase = o.TestCase,
             DoppeltSigniert = s.Call.DoppeltSigniert,

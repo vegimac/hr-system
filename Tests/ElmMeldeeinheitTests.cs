@@ -188,6 +188,49 @@ public class ElmMeldeeinheitTests
         Assert.Empty(Pruefe(Meldung(("#AHV", "046.000", AhvMit("Name", "NoneWithReason"))), true, kasse));
     }
 
+    [Fact]
+    public void Anmeldung_nur_mit_den_Nummern_der_Filiale()
+    {
+        var uvg = Kasse("UVG", "S122", 1, "6494960", "12604744");
+        var f1 = new HashSet<int> { 1 };
+        Assert.Null(ElmEmpfaengerPruefung.PruefeAnmeldung(new[] { uvg }, "UVG-LAA", "S122", "6494960", "12604744", f1, Von));
+        Assert.Contains("nicht so hinterlegt", ElmEmpfaengerPruefung.PruefeAnmeldung(new[] { uvg }, "UVG-LAA", "S122", "9", "12604744", f1, Von));
+        Assert.Contains("nicht zugeordnet", ElmEmpfaengerPruefung.PruefeAnmeldung(new[] { uvg }, "UVG-LAA", "S122", "6494960", "12604744", new HashSet<int> { 2 }, Von));
+        Assert.Contains("keine Anmeldung", ElmEmpfaengerPruefung.PruefeAnmeldung(new[] { uvg }, "x", "S122", "6494960", "12604744", f1, Von));
+    }
+
+    private static Employment V(int filiale, string von, string? bis, string? endeArt = null) => new()
+    {
+        CompanyProfileId = filiale, ContractStartDate = DateTime.Parse(von),
+        ContractEndDate = bis == null ? null : DateTime.Parse(bis), EndeArt = endeArt,
+    };
+
+    [Fact]
+    public void Folgevertrag_in_anderer_Filiale_ist_kein_Unterbruch()
+    {
+        var a = V(1, "2025-01-01", "2025-03-31", "interruptionOfEmployment");
+        var b = V(2, "2025-04-01", null);
+        Assert.Single(ElmEmaBuilder.UnterbruecheAusVertraegen(new[] { a }));
+        Assert.Empty(ElmEmaBuilder.UnterbruecheAusVertraegen(new[] { a }, new[] { a, b }));
+    }
+
+    [Fact]
+    public void Mutation_gehoert_zur_Filiale_mit_Vertrag_an_dem_Tag()
+    {
+        var a = new[] { V(1, "2025-01-01", "2025-03-14") };
+        var b = new[] { V(2, "2025-03-15", null) };
+        var tag = new DateOnly(2025, 3, 20);
+        Assert.False(ElmEmaBuilder.GiltInFiliale(a, tag));
+        Assert.True(ElmEmaBuilder.GiltInFiliale(b, tag));
+    }
+
+    [Fact]
+    public void Meldetag_ist_das_spaetere_Datum()
+    {
+        Assert.Equal(new DateOnly(2025, 4, 1), ElmEmaBuilder.Meldetag(new DateOnly(2025, 3, 10), new DateOnly(2025, 3, 15)));
+        Assert.Equal(new DateOnly(2025, 6, 5), ElmEmaBuilder.Meldetag(new DateOnly(2025, 3, 10), new DateOnly(2025, 6, 5)));
+    }
+
     private static XElement Bvg(string kunde, string vertrag) => new("BVG-LPP", new XAttribute("addresseeIDRef", "#BVG"),
         new XElement("CustomerIdentity", kunde), new XElement("ContractIdentity", vertrag));
 

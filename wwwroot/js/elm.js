@@ -387,8 +387,9 @@ function e2JahrZeileHtml(z, ahvGewaehlt) {
     const an = `<span class="e2-an"><b>${e2Esc(z.name)}</b><i>an ${e2Esc(z.an)}${nr ? ' · ' + e2Esc(nr) : ''}</i></span>`;
     if (!e2Zugeordnet(z))
         return `<div class="e2-zeile e2-gedimmt"><input type="checkbox" disabled>${an}<span class="e2-chip e2-grau">Kein Empfänger zugeordnet</span></div>`;
-    if (z.domain === 'FAK-CAF')
-        return `<div class="e2-zeile${ahvGewaehlt ? '' : ' e2-gedimmt'}"><input type="checkbox" disabled ${ahvGewaehlt ? 'checked' : ''}>${an}<span class="e2-chip e2-grau">geht mit der AHV-Meldung</span></div>`;
+    // Die Jahresmeldung enthält FAK, UVG, UVGZ, KTG und Lohnausweise: eine Sendung, keine eigene Auswahl.
+    if (['FAK-CAF', 'UVG-LAA', 'UVGZ-LAAC', 'KTG-AMC', 'Tax'].includes(z.domain))
+        return `<div class="e2-zeile${ahvGewaehlt ? '' : ' e2-gedimmt'}"><input type="checkbox" disabled ${ahvGewaehlt ? 'checked' : ''}>${an}<span class="e2-chip e2-grau">geht mit der Jahresmeldung</span></div>`;
     if (!e2Sendbar(z))
         return `<div class="e2-zeile e2-gedimmt"><input type="checkbox" disabled>${an}<span class="e2-chip e2-grau">noch nicht verfügbar</span></div>`;
     return `<label class="e2-zeile"><input type="checkbox" data-e2="wahl-jahr" data-id="${e2Esc(z.id)}" ${e2.wahlJahr.has(z.id) ? 'checked' : ''}>${an}<span class="e2-chip e2-ok">bereit</span></label>`;
@@ -808,7 +809,8 @@ function e2AnmeldungenHtml(suaDa) {
         // Die Antwort von Swissdec nennt nur die Kennung, nicht den Namen der Versicherung.
         // Die jüngste zählt; «closed» heisst abgemeldet.
         const passt = e => e.domain === z.domain && String(e.identification || '').trim() === String(z.kennung || '').trim();
-        const anm = (e2.stand?.anmeldungen || []).find(m => (m.empfaenger || []).some(passt));
+        // Je Filiale eine eigene Anmeldung; ältere ohne Filiale gelten für alle.
+        const anm = (e2.stand?.anmeldungen || []).find(m => (m.companyProfileId == null || m.companyProfileId === e2.filiale) && (m.empfaenger || []).some(passt));
         const empf = anm?.empfaenger?.find(passt);
         const nr = [z.kundennummer, z.vertragsnummer].filter(Boolean).join(' · ');
         const anmeldenKnopf = suaDa
@@ -1203,7 +1205,7 @@ async function e2Anmelden(el) {
     const name = (E2_DOM[d.domain] || d.domain) + ' bei ' + d.versicherer;
     await e2MitVerbindung(`Anmeldung ${name} wird signiert und gesendet …`, async () => {
         const r = await e2Post('/api/elm/meldungen/anmelden', {
-            domain: d.domain, versicherer: d.versicherer, kundennummer: d.kunde, vertragsnummer: d.vertrag, kennung: d.kennung,
+            domain: d.domain, versicherer: d.versicherer, kundennummer: d.kunde, vertragsnummer: d.vertrag, kennung: d.kennung, companyProfileId: e2.filiale,
         });
         if (r.j.stand) e2.stand = r.j.stand;
         e2.konfigHinweis = { ok: r.ok && r.j.ok !== false, ort: 'anmeldung', text: (r.ok && r.j.ok !== false ? name + ': ' : '') + (r.j.meldung || r.j.message || (r.ok ? 'Anmeldung gesendet.' : 'Nicht angemeldet.')) };

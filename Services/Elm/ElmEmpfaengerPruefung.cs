@@ -56,6 +56,24 @@ public static class ElmEmpfaengerPruefung
         return zugeordnet.Count == 1 ? zugeordnet[0] : "";
     }
 
+    /// <summary>Anmeldung nur für einen Empfänger, der bei diesen Filialen mit Kunden- und Vertragsnummer hinterlegt ist.</summary>
+    public static string? PruefeAnmeldung(IEnumerable<LohndatenEmpfaenger> katalog, string? domain, string? kennung,
+        string? kunde, string? vertrag, IReadOnlySet<int> filialIds, DateOnly heute)
+    {
+        var d = (domain ?? "").Trim();
+        if (!Arten.TryGetValue(d, out var arten)) return "Für diesen Standard gibt es keine Anmeldung.";
+        var norm = ElmFakAdressierung.NormKasse(ElmFakAdressierung.KasseFuerMeldung(kennung));
+        if (norm.Length == 0) return "Die Kennung des Empfängers fehlt.";
+        var zuordnungen = katalog.Where(x => x.IsActive && Passt(x, d, arten)
+                && ElmFakAdressierung.NormKasse(ElmFakAdressierung.KasseFuerMeldung(x.Kassennummer)) == norm)
+            .SelectMany(x => x.Zuordnungen).Where(z => filialIds.Contains(z.CompanyProfileId) && Gilt(z, heute, heute)).ToList();
+        if (zuordnungen.Count == 0) return $"Empfänger {kennung} ist dieser Filiale nicht zugeordnet.";
+        var k = (kunde ?? "").Trim();
+        var v = (vertrag ?? "").Trim();
+        return zuordnungen.Any(z => (z.Mitgliednummer ?? "").Trim() == k && k.Length > 0 && (z.Subnummer ?? "").Trim() == v && v.Length > 0)
+            ? null : $"Kunden- und Vertragsnummer von Empfänger {kennung} sind bei dieser Filiale nicht so hinterlegt.";
+    }
+
     public static List<string> Pruefe(XElement meldung, IReadOnlyList<LohndatenEmpfaenger> katalog, IReadOnlySet<int> filialIds,
         DateOnly von, DateOnly bis, bool jeFiliale)
     {

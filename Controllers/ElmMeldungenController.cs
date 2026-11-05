@@ -483,19 +483,40 @@ public class ElmMeldungenController : ControllerBase
         return Ok(new { ok = true, freigegeben = dto.Freigegeben });
     }
 
-    public record AnmeldenBody(string? Domain, string? Versicherer, string? Kundennummer, string? Vertragsnummer, string? Kennung);
+    public record AnmeldenBody(string? Domain, string? Versicherer, string? Kundennummer, string? Vertragsnummer, string? Kennung, int? CompanyProfileId = null);
 
     [HttpPost("anmelden")]
     public async Task<IActionResult> Anmelden([FromBody] AnmeldenBody dto, CancellationToken ct)
     {
-        var hs = await _db.Hauptsitze.AsNoTracking().Where(h => h.IsActive).OrderBy(h => h.Id).FirstOrDefaultAsync(ct);
-        if (hs == null)
-            return BadRequest(new { error = "HAUPTSITZ", message = "Kein Hauptsitz erfasst." });
+        var fehler = new List<string>();
+        var einheit = ElmMeldeeinheit.Bestimme(
+            await _db.CompanyProfiles.AsNoTracking().OrderBy(p => p.Id).ToListAsync(ct),
+            await _db.Hauptsitze.AsNoTracking().OrderBy(h => h.Id).ToListAsync(ct), dto.CompanyProfileId, fehler);
+        if (einheit == null)
+            return BadRequest(new { error = "ANMELDEN", message = string.Join(" ", fehler) });
+        var hs = einheit.Hauptsitz;
+        var filiale = einheit.JeFiliale ? einheit.Gewaehlt[0] : null;
+        var uid = ((filiale != null ? filiale.UidBfs ?? filiale.UidNummer : hs.Uid) ?? "").Trim().ToUpperInvariant();
+        var plz = ((filiale != null ? filiale.ZipCode : hs.Plz) ?? "").Trim();
+        var ort = ((filiale != null ? filiale.City : hs.Ort) ?? "").Trim();
+        var name = filiale != null ? filiale.FullDisplayName.Trim() : hs.Name;
+        if (!ElmStammdatenPruefung.UidBfsGueltig(uid))
+            return BadRequest(new { error = "ANMELDEN", message = filiale != null
+                ? $"Filiale «{name}»: Die UID fehlt oder ist ungültig. Bitte in den Stammdaten der Filiale erfassen."
+                : $"Hauptsitz «{name}»: Die UID fehlt oder ist ungültig." });
+        if (plz.Length == 0 || ort.Length == 0)
+            return BadRequest(new { error = "ANMELDEN", message = $"«{name}»: PLZ und Ort fehlen." });
+        if (string.IsNullOrWhiteSpace(hs.KontaktName))
+            return BadRequest(new { error = "ANMELDEN", message = $"Beim Hauptsitz «{hs.Name}» fehlt die Kontaktperson für Lohnmeldungen." });
+        var katalog = await _db.LohndatenEmpfaengers.AsNoTracking().Include(e => e.Zuordnungen).ToListAsync(ct);
+        if (ElmEmpfaengerPruefung.PruefeAnmeldung(katalog, dto.Domain, dto.Kennung, dto.Kundennummer, dto.Vertragsnummer,
+                einheit.Gewaehlt.Select(b => b.Id).ToHashSet(), DateOnly.FromDateTime(DateTime.Now)) is { } grund)
+            return BadRequest(new { error = "ANMELDEN", message = grund });
         try
         {
             var r = await _dienst.AnmeldenAsync(new ElmUebermittlungService.SubscribeOptionen(
-                hs.Uid, hs.Name, hs.KontaktName, dto.Kennung, dto.Domain, hs.Plz, hs.Ort,
-                dto.Versicherer, dto.Kundennummer, dto.Vertragsnummer), ct);
+                uid, name, hs.KontaktName, dto.Kennung, dto.Domain, plz, ort,
+                dto.Versicherer, dto.Kundennummer, dto.Vertragsnummer, CompanyProfileId: dto.CompanyProfileId), ct);
             return Ok(new { ok = r.Ok, meldung = r.Meldung, stand = Stand() });
         }
         catch (InvalidOperationException ex) { return BadRequest(new { error = "ANMELDEN", message = ex.Message }); }

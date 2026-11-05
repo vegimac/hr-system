@@ -114,6 +114,11 @@ public class ElmEmaBuilder
                 zeilen[code] = zeilen.GetValueOrDefault(code) + betrag;
         }
 
+        // Bei «Je Filiale» zählen für einen Folgevertrag auch die Verträge der anderen Filialen.
+        var alleVertraege = (stamm.JeFiliale
+                ? await _db.Employments.AsNoTracking().Where(v => ids.Contains(v.EmployeeId)).ToListAsync(ct)
+                : vertraege)
+            .GroupBy(v => v.EmployeeId).ToDictionary(g => g.Key, g => (IReadOnlyList<Employment>)g.ToList());
         var jahresmeldungen = _store.LadeBvgLohnsummen().Where(j => j.Freigegeben).ToList();
         var anstellungen = vertraege.GroupBy(v => v.EmployeeId).ToDictionary(g => g.Key, g => g.OrderBy(v => v.ContractStartDate).ToList());
         var stand = new Dictionary<int, E.Person>();
@@ -162,13 +167,16 @@ public class ElmEmaBuilder
                 Todestag(e, eigene),
                 codes.Any(c => c.EmployeeId == e.Id && c.IstAhvSonderfall),
                 monate,
-                zivil.Where(z => z.EmployeeId == e.Id && z.GueltigAb != null)
+                zivil.Where(z => z.EmployeeId == e.Id && z.GueltigAb != null
+                        && (!stamm.JeFiliale || GiltInFiliale(eigene, Meldetag(z.GueltigAb!.Value, z.ErfahrenAm ?? z.GueltigAb!.Value))))
                     .Select(z => (z.GueltigAb!.Value, z.ErfahrenAm ?? z.GueltigAb!.Value)).ToList(),
-                wohn.Where(w => w.EmployeeId == e.Id && w.GueltigAb != null)
+                wohn.Where(w => w.EmployeeId == e.Id && w.GueltigAb != null
+                        && (!stamm.JeFiliale || GiltInFiliale(eigene, Meldetag(w.GueltigAb!.Value, w.ErfahrenAm ?? w.GueltigAb!.Value))))
                     .Select(w => (w.GueltigAb!.Value, w.ErfahrenAm ?? w.GueltigAb!.Value)).ToList(),
                 manuell.Where(x => x.EmployeeId == e.Id && x.Art != ElmEmaManuell.ArtFit)
+                    .Where(x => !stamm.JeFiliale || x.Art != E.Mutation || GiltInFiliale(eigene, x.ValidAsOf ?? x.Monat))
                     .Select(x => new E.Manuell(x.Monat, x.Art, x.Grund, x.ValidAsOf))
-                    .Concat(UnterbruecheAusVertraegen(eigene))
+                    .Concat(UnterbruecheAusVertraegen(eigene, alleVertraege.GetValueOrDefault(e.Id)))
                     .Concat(TeilpensionierungenAusVertraegen(eigene)).ToList(),
                 jahresmeldungen.SelectMany(j => j.Zeilen.Where(z => z.EmployeeId == e.Id)
                         .Select(z => (Tag: new DateOnly(j.Jahr, 1, 1), z.Betrag)))
@@ -606,14 +614,29 @@ public class ElmEmaBuilder
     }
 
     /// <summary>Am Vertrag hinterlegter Arbeitsunterbruch. Mit nahtlosem Folgevertrag endet nichts, die Angabe zählt dann nicht.</summary>
-    public static IEnumerable<E.Manuell> UnterbruecheAusVertraegen(IReadOnlyList<Employment> vertraege)
+    /// <param name="alleVertraege">Auch die der anderen Filialen: Ein Folgevertrag dort ist kein Unterbruch.</param>
+    public static IEnumerable<E.Manuell> UnterbruecheAusVertraegen(IReadOnlyList<Employment> vertraege, IReadOnlyList<Employment>? alleVertraege = null)
     {
         foreach (var v in vertraege)
         {
             if (v.ContractEndDate is not DateTime ende || string.IsNullOrWhiteSpace(v.EndeArt) || v.EndeArt == Employment.EndeTodesfall) continue;
-            if (HatFolgevertrag(vertraege, ende)) continue;
+            if (HatFolgevertrag(alleVertraege ?? vertraege, ende)) continue;
             yield return new E.Manuell(new DateOnly(ende.Year, ende.Month, 1), E.Withdrawal, v.EndeArt);
         }
+    }
+
+    /// <summary>Bei «Je Filiale» meldet eine Mutation nur die Filiale, in der die Person an diesem Tag angestellt ist.</summary>
+    public static bool GiltInFiliale(IReadOnlyList<Employment> vertraege, DateOnly tag)
+    {
+        var t = tag.ToDateTime(TimeOnly.MinValue);
+        return vertraege.Any(v => v.ContractStartDate.Date <= t && (v.ContractEndDate == null || v.ContractEndDate.Value.Date >= t));
+    }
+
+    /// <summary>Tag, an dem Zivilstand oder Umzug gemeldet wird (wie ElmEmaEreignisse): Gültigkeit, sonst das Bekanntwerden.</summary>
+    public static DateOnly Meldetag(DateOnly gueltigAb, DateOnly erfahren)
+    {
+        var ab = E.ErsterFolgemonat(gueltigAb);
+        return ab > erfahren ? ab : erfahren;
     }
 
     /// <summary>Teilpensionierung ab Beginn des Vertrags, gemeldet im Monat des Vertragsbeginns (TF12 Casanova).</summary>
