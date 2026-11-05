@@ -121,6 +121,25 @@ public class ElmMeldeeinheitTests
         Assert.Empty(ElmEmpfaengerPruefung.Pruefe(m, new[] { kasse }, new HashSet<int> { 1 }, Von, Bis, true));
     }
 
+    [Fact]
+    public void Fruehere_Kasse_ist_mit_dem_ganzen_Zeitraum_erlaubt()
+    {
+        var spida = Kasse("AUSGLEICHSKASSE", "079.000", 1, "7019.2", bis: new DateOnly(2024, 12, 31));
+        var m = Meldung(("#AHV", "079.000", Ahv("#AHV", "7019.2")));
+        Assert.Empty(ElmEmpfaengerPruefung.Pruefe(m, new[] { spida }, new HashSet<int> { 1 }, DateOnly.MinValue, new DateOnly(2025, 12, 31), false));
+    }
+
+    [Fact]
+    public void Uvg_und_Uvgz_desselben_Versicherers_haben_eigene_Nummern()
+    {
+        var uvg = Kasse("UVG", "S1000", 1, "12577.2", "125");
+        var uvgz = Kasse("UVGZ", "S1000", 1, "7651-873.1", "4566-4");
+        uvg.Zuordnungen.Add(new CompanyProfileEmpfaenger { CompanyProfileId = 2, Mitgliednummer = "12577.2", Subnummer = "125", IsActive = true });
+        uvgz.Zuordnungen.Add(new CompanyProfileEmpfaenger { CompanyProfileId = 2, Mitgliednummer = "7651-873.1", Subnummer = "4566-4", IsActive = true });
+        var inst = new XElement("UVGZ-LAAC", new XAttribute("addresseeIDRef", "#z"), new XElement("CustomerIdentity", "7651-873.1"), new XElement("ContractIdentity", "4566-4"));
+        Assert.Empty(ElmEmpfaengerPruefung.Pruefe(Meldung(("#z", "S1000", inst)), new[] { uvg, uvgz }, new HashSet<int> { 1, 2 }, Von, Bis, false));
+    }
+
     private static XElement Bvg(string kunde, string vertrag) => new("BVG-LPP", new XAttribute("addresseeIDRef", "#BVG"),
         new XElement("CustomerIdentity", kunde), new XElement("ContractIdentity", vertrag));
 

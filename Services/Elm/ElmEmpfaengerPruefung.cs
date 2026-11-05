@@ -21,6 +21,18 @@ public static class ElmEmpfaengerPruefung
         ["BVG-LPP"] = new[] { "BVG" },
     };
 
+    /// <summary>UVG und UVGZ können denselben Versicherer mit eigenen Nummern haben; UVGZ ist auch ein UVG-Eintrag mit «Zusatz».</summary>
+    private static bool Passt(LohndatenEmpfaenger x, string domaene, string[] arten)
+    {
+        var zusatz = (x.Bezeichnung + " " + x.Zusatz).Contains("zusatz", StringComparison.OrdinalIgnoreCase);
+        return domaene switch
+        {
+            "UVGZ-LAAC" => x.Art == "UVGZ" || (x.Art == "UVG" && zusatz),
+            "UVG-LAA" => x.Art == "UVG" && !zusatz,
+            _ => arten.Contains(x.Art),
+        };
+    }
+
     private static bool Gilt(CompanyProfileEmpfaenger z, DateOnly von, DateOnly bis)
         => z.IsActive && (z.GueltigAb == null || z.GueltigAb <= bis) && (z.GueltigBis == null || z.GueltigBis >= von);
 
@@ -84,7 +96,7 @@ public static class ElmEmpfaengerPruefung
                 continue;
             }
             var norm = ElmFakAdressierung.NormKasse(ElmFakAdressierung.KasseFuerMeldung(kennung));
-            var empfaenger = katalog.Where(x => x.IsActive && arten.Contains(x.Art)
+            var empfaenger = katalog.Where(x => x.IsActive && Passt(x, domaene, arten)
                     && ElmFakAdressierung.NormKasse(ElmFakAdressierung.KasseFuerMeldung(x.Kassennummer)) == norm).ToList();
             if (empfaenger.Count == 0)
             {

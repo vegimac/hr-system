@@ -129,7 +129,9 @@ public class ElmUebermittlungService
         if (einheit == null) return fehler;
         var katalog = await _db.LohndatenEmpfaengers.AsNoTracking().Include(e => e.Zuordnungen).OrderBy(e => e.Id).ToListAsync(ct);
         var bis = DateOnly.FromDateTime(Periodenende(art, jahr, monat));
-        var von = art is "monthly" or "ema" ? new DateOnly(bis.Year, bis.Month, 1) : new DateOnly(jahr, 1, 1);
+        // Jahresmeldung: Lohn nach dem Austritt geht an die Kasse von damals, auch aus einem früheren Jahr.
+        var von = art is "monthly" or "ema" ? new DateOnly(bis.Year, bis.Month, 1)
+            : art is "annual" or "rectificate" ? DateOnly.MinValue : new DateOnly(jahr, 1, 1);
         return ElmEmpfaengerPruefung.Pruefe(root, katalog, einheit.Gewaehlt.Select(b => b.Id).ToHashSet(), von, bis, einheit.JeFiliale);
     }
 
