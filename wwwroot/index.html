@@ -22,7 +22,7 @@
     <link rel="stylesheet" href="css/app-09-vertraege-kalender.css?v=20261105a">
     <link rel="stylesheet" href="css/app-10-lohnschema-darkmode.css?v=20261103a">
     <link rel="stylesheet" href="css/app-11-diverses.css?v=20261103a">
-    <link rel="stylesheet" href="css/elm.css?v=20261105g">
+    <link rel="stylesheet" href="css/elm.css?v=20261105h">
     <!-- Dunkel-Modus-Sicherheitsnetz: IMMER zuletzt (erzeugt, siehe Kopf der Datei). -->
     <link rel="stylesheet" href="css/dark.css?v=20261102a">
 </head>
@@ -6728,40 +6728,25 @@
                 <!-- Reiter EMA (Walter 05.11.2026, vorher eigene Seite im HR-Bereich). elm.js hängt diesen
                      Block in den Reiter ein: so überleben Eingaben das Neuzeichnen. Inhalt: js/ema-aufgaben.js. -->
                 <div id="e2EmaTeil" style="display:none">
-                    <div class="e2-ema-spalte">
-                        <section class="e2-karte e2-ema-fuell">
-                            <h2>Erkannte Änderungen BVG und Quellensteuer</h2>
-                            <p class="e2-ema-text">Zeilen der gewählten Filiale ab 1.1.2026. Eintritt und Austritt behalten ihr Datum, jede andere Quellensteuer-Änderung gilt ab dem 1. des Folgemonats. Gesendet wird unter System → Lohnmeldungen (ELM).</p>
-                            <div id="emaPreview" class="e2-ema-inhalt"></div>
-                        </section>
-                        <section class="e2-karte e2-ema-klein">
-                            <div class="e2-ema-kopf">
-                                <h2>EMA-Meldung gegen die Referenz prüfen</h2>
-                                <button type="button" class="e2-pille e2-klein" onclick="document.getElementById('emaRefDateien').click()">Dateien wählen und prüfen</button>
+                    <section class="e2-karte e2-ema-haupt">
+                        <div class="e2-ema-kopf">
+                            <h2>Offene Punkte <i class="e2-info" title="Zeilen der gewählten Filiale ab 1.1.2026. Eintritt und Austritt behalten ihr Datum, jede andere Quellensteuer-Änderung gilt ab dem 1. des Folgemonats. Gesendet wird unter System → Lohnmeldungen (ELM).">i</i></h2>
+                            <div class="e2-ema-felder-klein">
+                                <label class="e2-ema-feld"><span>Monat</span><select id="emaFrageMonat" onchange="emaFragenLaden()"></select></label>
+                                <label class="e2-ema-feld"><span>Jahr</span><select id="emaFrageJahr" onchange="emaFragenLaden()"></select></label>
                             </div>
-                            <p class="e2-ema-text">Alle RefXML_…_EMA.xml und RefXML_…_PROSPECTIVE.xml aus dem Ordner SWISSCEC/RefXML wählen. Die Dateien werden nur gelesen, es wird nichts gespeichert und nichts gesendet.</p>
-                            <input type="file" id="emaRefDateien" accept=".xml" multiple style="display:none" onchange="emaRefPruefen(this)">
-                            <div id="emaRefErgebnis" class="e2-ema-ergebnis"></div>
-                        </section>
-                    </div>
-                    <div class="e2-ema-spalte">
-                        <section class="e2-karte e2-ema-fuell">
-                            <div class="e2-ema-kopf">
-                                <h2>100 % arbeitsfähig?</h2>
-                                <div class="e2-ema-felder-klein">
-                                    <label class="e2-ema-feld"><span>Monat</span><select id="emaFrageMonat" onchange="emaFragenLaden()"></select></label>
-                                    <label class="e2-ema-feld"><span>Jahr</span><select id="emaFrageJahr" onchange="emaFragenLaden()"></select></label>
-                                </div>
-                            </div>
-                            <p class="e2-ema-text">Offene Fragen zum Meldemonat. Solange eine offen ist, wird die EMA-Meldung nicht gesendet. Auch bei hängigen Arbeitsunfähigkeitsabklärungen mit Nein antworten. Nur bei Ja wird FullyFitForWork gemeldet.</p>
-                            <div id="emaFragen" class="e2-ema-inhalt"></div>
-                        </section>
-                        <section class="e2-karte e2-ema-klein">
-                            <h2>Ereignis von Hand auslösen</h2>
-                            <p class="e2-ema-text">Arbeitsunterbruch, Teilpensionierung und Arbeitsunfähigkeit erkennt das System nicht selbst (RL 8.6.8). Bei «Beginn nach Arbeitsunterbruch» und «Beginn Arbeitsunterbruch» gilt das Datum des Eintritts oder Austritts.</p>
+                        </div>
+                        <div class="e2-ema-inhalt">
+                            <div id="emaFragen"></div>
+                            <div id="emaPreview"></div>
+                        </div>
+                    </section>
+                    <div class="e2-ema-seite">
+                        <section class="e2-karte">
+                            <h2>Ereignis von Hand <i class="e2-info" title="Arbeitsunterbruch, Teilpensionierung und Arbeitsunfähigkeit erkennt das System nicht selbst (RL 8.6.8). Bei «Beginn nach Arbeitsunterbruch» und «Beginn Arbeitsunterbruch» gilt das Datum des Eintritts oder Austritts.">i</i></h2>
                             <div class="e2-ema-raster">
-                                <label class="e2-ema-feld"><span>Person</span><select id="emaManMa"></select></label>
-                                <label class="e2-ema-feld"><span>Ereignis</span><select id="emaManGrund">
+                                <label class="e2-ema-feld e2-ema-breit"><span>Person</span><select id="emaManMa"></select></label>
+                                <label class="e2-ema-feld e2-ema-breit"><span>Ereignis</span><select id="emaManGrund">
                                 <option value="Withdrawal|interruptionOfEmployment">Beginn Arbeitsunterbruch</option>
                                 <option value="Withdrawal|interruptionOfEmploymentOnlyRisk">Beginn Arbeitsunterbruch, nur Risiko</option>
                                 <option value="Withdrawal|interruptionOfEmploymentNotInsured">Beginn Arbeitsunterbruch, nicht versichert</option>
@@ -6771,12 +6756,18 @@
                                 <option value="Mutation|fullyFitForWork">Vollständig arbeitsfähig</option>
                             </select></label>
                                 <label class="e2-ema-feld"><span>Meldemonat <i>ein Tag darin</i></span><input id="emaManMonat" type="date"></label>
-                                <label class="e2-ema-feld"><span>Gültig ab <i>nur bei Mutation</i></span><input id="emaManAb" type="date"></label>
+                                <label class="e2-ema-feld"><span>Gültig ab <i>bei Mutation</i></span><input id="emaManAb" type="date"></label>
                             </div>
-                            <div class="e2-ema-fuss">
-                                <div id="emaManListe" class="e2-ema-ergebnis"></div>
-                                <button type="button" class="e2-pille e2-primaer" onclick="emaManSpeichern()">Erfassen</button>
+                            <button type="button" class="e2-pille e2-primaer e2-ema-erfassen" onclick="emaManSpeichern()">Erfassen</button>
+                            <div id="emaManListe" class="e2-ema-ergebnis"></div>
+                        </section>
+                        <section class="e2-karte">
+                            <div class="e2-ema-kopf e2-ema-kopf-mitte">
+                                <h2>Referenz prüfen <i class="e2-info" title="Alle RefXML_…_EMA.xml und RefXML_…_PROSPECTIVE.xml aus dem Ordner SWISSCEC/RefXML wählen. Die Dateien werden nur gelesen, es wird nichts gespeichert und nichts gesendet.">i</i></h2>
+                                <button type="button" class="e2-pille e2-klein" onclick="document.getElementById('emaRefDateien').click()">Dateien wählen</button>
                             </div>
+                            <input type="file" id="emaRefDateien" accept=".xml" multiple style="display:none" onchange="emaRefPruefen(this)">
+                            <div id="emaRefErgebnis" class="e2-ema-ergebnis"></div>
                         </section>
                     </div>
                 </div>
@@ -13351,7 +13342,7 @@ body.theme-dark .stm-karte-ansicht .ov-card-h { color: #f3f0ea; }
 <script type="text/plain" data-modul="js/famz-anmeldung.js?v=20261022a"></script>
 <script type="text/plain" data-modul="js/famz-gastrosocial.js?v=20261011p"></script>
 <script type="text/plain" data-modul="js/akis-meldung.js?v=20261030f"></script>
-<script type="text/plain" data-modul="js/ema-aufgaben.js?v=20261105d"></script>
+<script type="text/plain" data-modul="js/ema-aufgaben.js?v=20261105e"></script>
 <script type="text/plain" data-modul="js/manager-dienstplan.js?v=20261013b"></script>
 <script type="text/plain" data-modul="js/organigramm.js?v=20261102b"></script>
 <script type="text/plain" data-modul="js/ferien-planer.js?v=20260814b"></script>
