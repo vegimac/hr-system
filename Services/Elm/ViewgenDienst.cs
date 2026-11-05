@@ -20,14 +20,14 @@ public class ViewgenDienst
 
     private static readonly TimeSpan StandardFrist = TimeSpan.FromMinutes(3);
 
+    // Nicht aufgenommen, weil sie auf der Testinstanz kein PDF lieferten (Walter 05.11.2026):
+    // AhvProofOfInsuranceReport, FakDetailedReport, PlausibilityReport.
     public static readonly IReadOnlyDictionary<string, string> Berichte = new Dictionary<string, string>
     {
         ["TaxAccountingReport"] = "Lohnausweis",
         ["AhvReport"] = "AHV",
         ["AhvFreeReport"] = "AHV-freie Personen",
-        ["AhvProofOfInsuranceReport"] = "AHV-Versicherungsausweis",
         ["FakReport"] = "FAK",
-        ["FakDetailedReport"] = "FAK ausführlich",
         ["UvgReport"] = "UVG",
         ["UvgzReport"] = "UVGZ",
         ["KtgReport"] = "KTG",
@@ -35,14 +35,13 @@ public class ViewgenDienst
         ["QstReport"] = "Quellensteuer",
         ["QstResultReport"] = "Quellensteuer-Ergebnis",
         ["StatisticReport"] = "Statistik",
-        ["PlausibilityReport"] = "Plausibilität",
     };
 
     /// <summary>Aus der Monatsmeldung: Quellensteuer und Statistik stehen nur dort.</summary>
-    public static readonly IReadOnlySet<string> AusMonat = new HashSet<string> { "QstReport", "QstResultReport", "StatisticReport", "PlausibilityReport" };
+    public static readonly IReadOnlySet<string> AusMonat = new HashSet<string> { "QstReport", "QstResultReport", "StatisticReport" };
 
-    /// <summary>Aus der Jahresmeldung. Die Plausibilität gibt es für beide Meldungen.</summary>
-    public static bool AusJahr(string plugin) => Berichte.ContainsKey(plugin) && (!AusMonat.Contains(plugin) || plugin == "PlausibilityReport");
+    /// <summary>Aus der Jahresmeldung.</summary>
+    public static bool AusJahr(string plugin) => Berichte.ContainsKey(plugin) && !AusMonat.Contains(plugin);
 
     // Ein Bericht zur Zeit: Die Maschine trägt auch Prod, und jeder Lauf darf bis 1 GB belegen.
     private static readonly SemaphoreSlim NurEiner = new(1, 1);

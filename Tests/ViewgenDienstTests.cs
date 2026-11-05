@@ -26,9 +26,9 @@ public class ViewgenDienstTests : IDisposable
     [Theory]
     [InlineData("QstReport", false, true)]
     [InlineData("StatisticReport", false, true)]
-    [InlineData("PlausibilityReport", true, true)]
     [InlineData("AhvReport", true, false)]
-    [InlineData("FakDetailedReport", true, false)]
+    [InlineData("FakReport", true, false)]
+    [InlineData("FakDetailedReport", false, false)]
     public void Bericht_kommt_aus_der_richtigen_Meldung(string plugin, bool jahr, bool monat)
     {
         Assert.Equal(jahr, ViewgenDienst.AusJahr(plugin));
