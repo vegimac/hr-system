@@ -325,12 +325,12 @@ const E2_VG_BITS = [1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 
 function e2ViewgenWarteHtml() {
     const text = e2.viewgenBusy === 'xml' ? 'Die XML wird aus OneCrew erzeugt …' : 'ViewGen erzeugt das PDF, das kann etwas dauern …';
     return `<div class="e2-vg-warte" role="status">
-        <svg viewBox="0 0 400 96" aria-hidden="true">
-            <rect class="e2-vg-chip" x="4" y="32" width="50" height="32" rx="12"/><text class="e2-vg-chiptext" x="29" y="52.5" text-anchor="middle">XML</text>
-            <rect class="e2-vg-chip" x="346" y="32" width="50" height="32" rx="12"/><text class="e2-vg-chiptext" x="371" y="52.5" text-anchor="middle">PDF</text>
+        <svg viewBox="0 0 640 52" aria-hidden="true">
+            <rect class="e2-vg-chip" x="2" y="11" width="46" height="30" rx="11"/><text class="e2-vg-chiptext" x="25" y="30.5" text-anchor="middle">XML</text>
+            <rect class="e2-vg-chip" x="592" y="11" width="46" height="30" rx="11"/><text class="e2-vg-chiptext" x="615" y="30.5" text-anchor="middle">PDF</text>
             <path id="e2VgRoh" class="e2-vg-spur"/><path id="e2VgSauber" class="e2-vg-spur"/>
             <path id="e2VgRohImpuls" class="e2-vg-impuls"/><path id="e2VgSauberImpuls" class="e2-vg-impuls e2-vg-rot"/>
-            <g class="e2-vg-zeichen" transform="translate(174 13) scale(.56)">
+            <g class="e2-vg-zeichen" transform="translate(298 2) scale(.46)">
                 <polygon points="5,28 49,16 49,41 27,47 27,74 49,67 49,93 5,106"/><polygon points="70,10 92,3 92,29 70,35"/><polygon points="70,62 92,55 92,81 70,87"/>
             </g>
         </svg>
@@ -339,7 +339,7 @@ function e2ViewgenWarteHtml() {
 }
 
 function e2VgZug(a, b, f, t) {
-    const w = 10, hi = 34, lo = 62, r = 3;
+    const w = 10, hi = 15, lo = 37, r = 3;
     let x = a - (((t % w) + w) % w), n = Math.floor(t / w), v = f(n);
     let s = `M${a} ${v ? hi : lo} `;
     while (x < b) {
@@ -360,8 +360,8 @@ function e2VgZeichnen(ms) {
     if (!e2.viewgenBusy) { e2.viewgenLauf = false; return; }
     if (roh) {
         const t = 9e5 - ms / 40;
-        const l = e2VgZug(62, 168, n => E2_VG_BITS[((n % 24) + 24) % 24], t);
-        const k = e2VgZug(236, 338, n => ((n % 2) + 2) % 2, t);
+        const l = e2VgZug(58, 288, n => E2_VG_BITS[((n % 24) + 24) % 24], t);
+        const k = e2VgZug(352, 582, n => ((n % 2) + 2) % 2, t);
         const versatz = -(ms / 5) % 240;
         roh.setAttribute('d', l);
         document.getElementById('e2VgSauber').setAttribute('d', k);
