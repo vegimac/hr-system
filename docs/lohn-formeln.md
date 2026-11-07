@@ -204,44 +204,58 @@ Auszahlungen bekamen nie 13. ML.
 
 ## 6. Krankheit / Unfall (KTG/UVG)
 
+**Karenz und Taggeld nach L-GAV (Walter 07.11.2026, Empfehlung D. Sägesser, Rechtsdienst L-GAV;
+ersetzt «Tagessatz ohne Feiertag» vom 04.08.2026 und die 2-Monats-Regel):**
+Der Tagessatz 100 % ist der volle Bruttolohn pro Kalendertag — wie der AHV-Lohn, den die
+Versicherung versichert (SWICA: versicherter Verdienst × 80 % ÷ 365, pro Tag auf 5 Rp.).
+
 **Tagessatz-Basis (`KtgTagessatzService`, NICHT der Ferien-Tagessatz!):**
 ```
-StdLohn_brutto = HourlyRate × (1 + Ferien-%) × (1 + 8.33 %)      ← OHNE Feiertag-%
+Aufschlag      = (1 + Ferien-% + Feiertag-%) × (1 + 13.-ML-%)        (PayrollCalculations.BruttoAufschlag)
+                 Sätze wie die Engine: Filiale, Ferien altersabhängig zum Stichtag,
+                 13. ML nur mit Häkchen am Vertrag, «Ferien/Feiertag im Ansatz» → 0 %
+StdLohn_brutto = HourlyRate × Aufschlag                 20.40 → 23.04 → 24.95
 Regel A (weniger als 4 Lohnmonate seit Vertragsbeginn in dieser Filiale):
     FIX/FIX-M : MonthlySalary × 12 / 365
     MTP       : WoStd_garantiert × StdLohn_brutto × 52 / 365
     FLEX      : max_part_time_hours (Default 17) × StdLohn_brutto × 52 / 365
 Regel B (≥ 4 Lohnmonate): letzte ≤ 12 Monate
     FLEX/FIX  : Ø AHV-Basis × 12 / 365   (AHV-Basis enthält Ferien, 13. ML UND Feiertag)
-    MTP       : Garantie-Anteil wie A + Ø «MTP + Stunden» × (1+Ferien-%) × 1.0833 × 12 / 365
-Manueller Tagessatz (emp.KtgTagessatzManuell, z.B. aus Mirus) übersteuert alles.
+    MTP       : Garantie-Anteil wie A + Ø «MTP + Stunden» × Aufschlag × 12 / 365
+Manueller Tagessatz (emp.KtgTagessatzManuell, z.B. aus Mirus) übersteuert alles (= Bruttolohn).
 Massgebender Vertrag = zuletzt begonnener bis Periodenende (nicht is_active — Austrittsmonat).
 
-Tagessatz88 = Tagessatz100 × 0.88     (Karenzentschädigung, Codes 70.1 Krank / 60.2 Unfall)
-Tagessatz80 = Tagessatz100 × 0.80     (Taggeld nach Karenz, Codes 70.2 / 60.3)
+Grundlohn-Anteil (KarenzGrundTagessatz) = Tagessatz ohne Zuschläge
+    Regel A FLEX/MTP : Stunden × HourlyRate × 52 / 365          (exakt)
+    Regel B MTP      : Garantie + Ø «MTP + Stunden» × 12 / 365   (exakt)
+    Regel B FLEX, manuell : Tagessatz100 ÷ Aufschlag             (herausgerechnet)
+    FIX/FIX-M        : = Tagessatz100
 
-Feiertagentschädigung auf Lohnersatz (195.2) = (Karenz 88 % + Taggeld 80 %) × Feiertag-%
-    nur FLEX/MTP, nur solange die Krank-/Unfall-Kette < 2 volle Monate dauert,
-    und NUR wenn der Tagessatz den Feiertag nicht schon enthält:
-        Regel A (alle)        → Zeile ja
-        Regel B MTP           → Zeile ja
-        Regel B FLEX/FIX      → Zeile NEIN (steckt in der AHV-Basis)
-        Manueller Tagessatz   → Zeile NEIN (Mirus-Satz = AHV-Durchschnitt)
+Taggeld 80 % (2035 Krank / 2030 Unfall) = Tage × Round05(Tagessatz100 × 80 %)
+    eine Zeile, KEINE Zuschläge (Ferien, Feiertag, 13. ML stecken im Tagessatz),
+    keine AHV/ALV/UVG; BVG/QST nach Häkchen. Gilt auch für FIX/FIX-M.
+Karenz 88 % (1301 Krank / 1300 Unfall), nur FLEX/MTP mit Rechenweg:
+    Karenz                      = Tage × Grundlohn-Anteil × 88 %   (rappengenau)
+    Ferien                      = Ferien-%   der Karenz  → in die normale Ferien-Basis (Pott bzw. monatlich)
+    Feiertagentschädigung auf Karenz (1161) = Feiertag-% der Karenz (5 Rp.), eigene Zeile
+    13. ML                      = 13.-%      auf Karenz + Feiertag auf Karenz (normale 13.-Basis);
+                                  Ferien wie bei Arbeitsstunden (13. auf dem Ferienbezug)
+    Total ≈ 88 % × Tagessatz100 — Rundungsdifferenz wenige Rappen (jede %-Zeile auf 5 Rp.)
+    FIX/FIX-M unverändert: 88 % des Monatslohn-Satzes, 13. ML über die Häkchen der Karenz.
+BVG-Wartefrist: Differenz zum 100-%-Tagessatz zählt weiter zur BVG-Basis.
+Sätze 88 % / 80 % zentral: PayrollCalculations.KarenzAnteil / TaggeldAnteil.
+
+Beispiel FLEX 17 h, CHF 20.40, 10.65 % / 2.27 % / 8.33 % (Regel A):
+    Tagessatz 60.44 · Karenz 14 Tage: 608.70 + Ferien 64.85 + Feiertag 13.80 + 13. ML 57.25 = 744.60
+    Taggeld 10 Tage: 10 × 48.35 = 483.50
 ```
 Korrekturlohn nach Austritt (`CalculateCorrectionAsync`, Walter 04.10.2026): auf den erfassten
 Zulagen nach deren Flags — Feiertag-% und Ferien-% (FLEX/MTP, Ferien direkt ausbezahlt, Pott
 ist zu), 13. ML nur FLEX (nicht bei Austritt in der Probezeit). MTP/FIX: kein 13. ML auf der
 Korrektur (läuft über den 13.-Saldo).
-- Auf das Taggeld selbst kommen **keine weiteren Zuschläge**: Ferien und 13. ML stecken im
-  Tagessatz, der Feiertag nur wie oben (Walter 04.10.2026). Mirus rechnet ebenso
-  (13. ML ohne Taggeld in der Basis).
-- **Lohnersatz-Spur (Walter 04.10.2026):** 70.1 / 70.2 / 60.2 / 60.3 (+ Feiertag auf
-  Lohnersatz 195.2 / 195.4) laufen NICHT über die normale Feiertag-Basis. Ihre Häkchen
-  «Ferien» / «13. ML» wirken nur, wenn der Tagessatz den Zuschlag nicht schon enthält
-  (`KtgTagessatzResult.EnthaeltFerien` / `Enthaelt13ml`: FLEX/MTP-Hochrechnung und manueller
-  Satz = enthalten; FIX = Monatslohn × 12/365 → nicht enthalten, dort zählt die 88 %-Karenz
-  mit Häkchen in die 13.-Basis). «Feiertag» auf 70.x/60.x = Basis der Feiertagentschädigung
-  auf Lohnersatz (fehlt die Lohnposition: zählt).
+- Die Häkchen «Ferien» / «Feiertag» / «13. ML» der Lohnersatz-Positionen wirken bei FLEX/MTP
+  nicht mehr — die Zuschläge der Karenz sind Teil der 88 % (L-GAV) und werden immer gerechnet.
+  FIX/FIX-M: 13. ML auf der Karenz weiter über das Häkchen.
 - Gezahlt wird auf **Kalendertagen** (Versicherung zahlt auch Sa+So).
 - **MTP:** wie FLEX (Walter 19.10.2026) — Garantie 1005 um Zeitgutschrift gekürzt, keine
   Korrektur 2050; Tagessatz = Garantie (+ Ø Mehrstunden bei Regel B). Abschnitt 2.

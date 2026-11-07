@@ -1111,6 +1111,78 @@ public static class PayrollCalculations
     public static decimal Round05(decimal value)
         => Math.Round(value / 0.05m, 0, MidpointRounding.AwayFromZero) * 0.05m;
 
+    // ── Karenz / Taggeld nach L-GAV (Walter 07.11.2026, Empfehlung D. Sägesser) ──
+    // Art. 23/25 L-GAV: Karenz (Aufschubszeit) 88 %, Versicherungs-Taggeld 80 %
+    // des Bruttolohns. Eine Stelle für beide Sätze statt verstreuter 0.88/0.80.
+
+    /// <summary>Karenzentschädigung: 88 % des Bruttolohns (Art. 23 / 25 L-GAV).</summary>
+    public const decimal KarenzAnteil  = 0.88m;
+    /// <summary>Kranken-/Unfall-Taggeld: 80 % des Bruttolohns (Art. 23 L-GAV, UVG).</summary>
+    public const decimal TaggeldAnteil = 0.80m;
+
+    /// <summary>
+    /// Aufschlag vom Grundlohn auf den Bruttolohn bei Stundenlohn, L-GAV-Reihenfolge:
+    /// (1 + Ferien % + Feiertag %) × (1 + 13. ML %). 20.40 → 23.04 → 24.95.
+    /// </summary>
+    public static decimal BruttoAufschlag(decimal ferienPct, decimal feiertagPct, decimal ml13Pct)
+        => (1m + (ferienPct + feiertagPct) / 100m) * (1m + ml13Pct / 100m);
+
+    /// <summary>
+    /// Taggeld pro Kalendertag wie die Versicherung (SWICA-Abrechnung 24.10.2026:
+    /// 12'899.05 × 80 % ÷ 365 = 28.272 → 28.25): 80 % des Tagessatzes, auf 5 Rappen.
+    /// </summary>
+    public static decimal TaggeldProTag(decimal tagessatz100)
+        => Round05(tagessatz100 * TaggeldAnteil);
+
+    /// <summary>
+    /// Rechenweg der Karenz für die Anzeige (Fenster Tagessatz): Grundlohn × 88 %,
+    /// Ferien und Feiertag darauf, 13. ML auf das Zwischentotal. Ungerundet —
+    /// auf der Lohnabrechnung rundet jede Zeile für sich (Prozentzeilen auf 5 Rp.).
+    /// </summary>
+    /// <summary>
+    /// Karenz- und Taggeld-Beträge einer Periode (Krank oder Unfall) aus den Tagen.
+    /// Karenztag: Grundlohn-Anteil × 88 % (FLEX/MTP; Ferien, Feiertag, 13. ML kommen
+    /// als eigene Zeilen dazu — bei FIX ist der Grundlohn-Anteil der volle Satz).
+    /// Taggeldtag: Taggeld pro Tag (80 %, 5 Rp.) × AU-%. BVG-Korrektur = Differenz
+    /// zum 100-%-Tagessatz an Tagen in der BVG-Wartefrist (Ziel: 88 % bzw. 80 %
+    /// des Bruttolohns sind bezahlt, der Rest fehlt der BVG-Basis).
+    /// Beträge rappengenau (Anzahl × Satz).
+    /// </summary>
+    public static LohnersatzBetraege LohnersatzRechnen(
+        IEnumerable<KarenzService.MonatsKrankTag> tage, decimal tagessatz100, decimal karenzGrundTagessatz)
+    {
+        decimal karenz = 0m, taggeld = 0m, tageKarenz = 0m, tageTaggeld = 0m, bvg = 0m;
+        decimal taggeldSatz = TaggeldProTag(tagessatz100);
+        foreach (var t in tage)
+        {
+            decimal anteil  = t.Prozent / 100m;
+            decimal tagWert = tagessatz100 * anteil;
+            if (t.InKarenz)
+            {
+                karenz     += karenzGrundTagessatz * anteil * KarenzAnteil;
+                tageKarenz += anteil;
+                if (t.BvgAuf100) bvg += tagWert * (1m - KarenzAnteil);
+            }
+            else
+            {
+                decimal tg = taggeldSatz * anteil;
+                taggeld     += tg;
+                tageTaggeld += anteil;
+                if (t.BvgAuf100) bvg += tagWert - tg;
+            }
+        }
+        return new LohnersatzBetraege(Rappen(karenz), Rappen(taggeld), tageKarenz, tageTaggeld, Rappen(bvg));
+    }
+
+    public static KarenzAufteilung KarenzAufteilen(decimal grundTagessatz100, decimal ferienPct, decimal feiertagPct, decimal ml13Pct)
+    {
+        decimal karenz   = grundTagessatz100 * KarenzAnteil;
+        decimal ferien   = karenz * ferienPct / 100m;
+        decimal feiertag = karenz * feiertagPct / 100m;
+        decimal ml13     = (karenz + ferien + feiertag) * ml13Pct / 100m;
+        return new KarenzAufteilung(karenz, ferien, feiertag, ml13);
+    }
+
     /// <summary>
     /// Anteil eines Familienzulagen-Eintrags an einem Monat, 30-Tage-Basis wie die
     /// Ausgleichskasse (Walter 04.10.2026, Fomina: 14.–31.08. = 17/30 → 310 × 17/30 = 175.65).
@@ -2035,3 +2107,12 @@ public static class PayrollCalculations
             && (r.MaxAge == null || effectiveAge == null || effectiveAge <= r.MaxAge);
     }
 }
+
+/// <summary>Rechenweg der Karenz pro Tag (siehe <see cref="PayrollCalculations.KarenzAufteilen"/>).</summary>
+public record KarenzAufteilung(decimal Karenz, decimal Ferien, decimal Feiertag, decimal Ml13)
+{
+    public decimal Total => Karenz + Ferien + Feiertag + Ml13;
+}
+
+/// <summary>Karenz/Taggeld einer Periode (siehe <see cref="PayrollCalculations.LohnersatzRechnen"/>).</summary>
+public record LohnersatzBetraege(decimal Karenz, decimal Taggeld, decimal TageKarenz, decimal TageTaggeld, decimal BvgKorrektur);

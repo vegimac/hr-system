@@ -60,8 +60,7 @@ function _ktgBreakdownHtml(d) {
             breakdownHtml = `
                 <div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155;line-height:1.7">
                     <div><b>Stundenlohn (Basis):</b> CHF ${fmt(bd.stundenlohnBasis, 2)}</div>
-                    <div>+ Ferien ${fmt(bd.ferienPct, 2)} %, + 13. ML ${fmt(bd.zehnterMLPct, 2)} %</div>
-                    <div style="color:#94a3b8;font-size:11px">ohne Feiertag % — Feiertagentschädigung ist AHV-pflichtiger Lohn und läuft während Krankheit als separate Lohnzeile (04.08.2026)</div>
+                    <div>+ Ferien ${fmt(bd.ferienPct, 2)} % + Feiertag ${fmt(bd.feiertagPct, 2)} %, darauf + 13. ML ${fmt(bd.zehnterMLPct, 2)} %</div>
                     <div><b>= Brutto-Stundenlohn:</b> CHF ${fmt(bd.stundenlohnBrutto, 4)}</div>
                     <div style="margin-top:6px"><b>Wochenstunden:</b> ${fmt(bd.wochenStunden, 2)} h (${d.vertragsModell === 'MTP' ? 'garantiert' : 'FLEX aus Filiale'})</div>
                     <div style="margin-top:4px;color:#64748b">Formel: Wochenstunden × Std-Lohn brutto × 52 ÷ 365 = Tagessatz 100 %</div>
@@ -90,7 +89,34 @@ function _ktgBreakdownHtml(d) {
                 Formel: Ø × 12 ÷ 365 = Tagessatz 100 %${d.vertragsModell === 'MTP' ? ' (Garantie- und Mehrstunden-Anteil summiert)' : ''}
             </div>`;
     }
+    breakdownHtml += _ktgKarenzWegHtml(d);
     return breakdownHtml;
+}
+
+/** Rechenweg Karenz und Taggeld nach L-GAV (Walter 07.11.2026, D. Sägesser):
+ *  Karenz = Grundlohn × 88 %, Ferien/Feiertag/13. ML einzeln (wie auf der
+ *  Lohnabrechnung); Taggeld = Tagessatz × 80 %, pro Tag auf 5 Rp., ohne Zuschläge. */
+function _ktgKarenzWegHtml(d) {
+    const bd = d.breakdown || {};
+    if (bd.karenzGrundlohn == null || d.karenzAbgeschlossen) return '';
+    const fmt = _ktgFmtChf;
+    const zeile = (txt, betrag, stark) => `
+        <tr style="border-top:1px solid var(--oc-rand-schwach)">
+            <td style="padding:4px 10px;${stark ? 'font-weight:700;' : ''}">${txt}</td>
+            <td style="padding:4px 10px;text-align:right;font-family:monospace;${stark ? 'font-weight:700;' : ''}">CHF ${fmt(betrag)}</td>
+        </tr>`;
+    return `
+        <div style="margin-top:12px;padding:12px 16px;background:var(--oc-flaeche-2);border-radius:8px;font-size:12px;color:var(--oc-text)">
+            <div style="font-weight:600;margin-bottom:6px">Karenz 88 % pro Tag — Rechenweg L-GAV</div>
+            <table style="width:100%;border-collapse:collapse"><tbody>
+                ${zeile(`Grundlohn CHF ${fmt(bd.grundTagessatz)} × 88 %`, bd.karenzGrundlohn)}
+                ${zeile(`+ Ferien ${fmt(bd.ferienPct, 2)} %`, bd.karenzFerien)}
+                ${zeile(`+ Feiertag ${fmt(bd.feiertagPct, 2)} %`, bd.karenzFeiertag)}
+                ${zeile(`+ 13. ML ${fmt(bd.zehnterMLPct, 2)} % auf das Zwischentotal`, bd.karenz13ml)}
+                ${zeile('= Karenz pro Tag (88 % des Tagessatzes)', d.tagessatz88, true)}
+            </tbody></table>
+            <div style="margin-top:6px;color:var(--oc-text-3)">Taggeld 80 %: Tagessatz × 80 %, pro Tag auf 5 Rappen (wie die Versicherung) — eine Zeile ohne Zuschläge, Ferien, Feiertag und 13. ML sind im Tagessatz enthalten.</div>
+        </div>`;
 }
 
 function _ktgRatesTableHtml(d) {

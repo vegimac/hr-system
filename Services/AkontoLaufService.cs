@@ -390,6 +390,16 @@ public class AkontoLaufService
                 // die Krank/Feiertag-Komponenten ab (kein Lohn-Ausfall bei MTP).
                 if (model == "FLEX")
                 {
+                    // Feiertagentschädigung (% auf die Stunden). Vor der Karenz:
+                    // deren 88 % enthalten den Feiertag schon (L-GAV, Walter 07.11.2026).
+                    // Walter-Vorgabe 06.06.2026 (Stufe 1b): nur noch Filial-Default
+                    decimal feiertagPct = profile.DefaultHolidayPercent ?? 2.27m;
+                    if (feiertagPct > 0)
+                    {
+                        decimal feiertagEnt = Math.Round(brutto * feiertagPct / 100m, 2);
+                        brutto += feiertagEnt;
+                        bruttoErlaeuterung += $" + Feiertag {feiertagPct:0.000}% = CHF {feiertagEnt:0.00}";
+                    }
                     // Krank-Karenz 88% (nur Tage VOR Stichtag)
                     decimal krankTageBisStichtag = absences
                         .Where(a => a.EmployeeId == e.Id
@@ -403,19 +413,10 @@ public class AkontoLaufService
                         decimal tagessatz100 = ktg?.Tagessatz100 ?? 0m;
                         if (tagessatz100 > 0)
                         {
-                            decimal karenz88 = Math.Round(krankTageBisStichtag * tagessatz100 * 0.88m, 2);
+                            decimal karenz88 = Math.Round(krankTageBisStichtag * tagessatz100 * PayrollCalculations.KarenzAnteil, 2);
                             brutto += karenz88;
                             bruttoErlaeuterung += $" + Krank-Karenz {krankTageBisStichtag:0.00} Tg × CHF {tagessatz100:0.00} × 88% = CHF {karenz88:0.00}";
                         }
-                    }
-                    // Feiertagentschädigung (% auf Brutto)
-                    // Walter-Vorgabe 06.06.2026 (Stufe 1b): nur noch Filial-Default
-                    decimal feiertagPct = profile.DefaultHolidayPercent ?? 2.27m;
-                    if (feiertagPct > 0)
-                    {
-                        decimal feiertagEnt = Math.Round(brutto * feiertagPct / 100m, 2);
-                        brutto += feiertagEnt;
-                        bruttoErlaeuterung += $" + Feiertag {feiertagPct:0.000}% = CHF {feiertagEnt:0.00}";
                     }
                 }
                 break;

@@ -54,7 +54,8 @@ public class KtgTagessatzAustrittTests
         var r = await svc.CalculateAsync(empId, cpId, new DateOnly(2026, 9, 26));
 
         Assert.NotNull(r);
-        Assert.Equal(58.06m, r!.Tagessatz100);
+        // 17 × 20 × (1 + 10.65 % + 2.27 %) × 1.0833 × 52 / 365 (L-GAV, 07.11.2026)
+        Assert.Equal(59.25m, r!.Tagessatz100);
     }
 
     [Fact]
@@ -68,7 +69,7 @@ public class KtgTagessatzAustrittTests
     }
 
     [Fact]
-    public async Task Hochrechnung_ohne_Feiertag_manueller_Satz_mit_Feiertag()
+    public async Task Hochrechnung_und_manueller_Satz_enthalten_Feiertag()
     {
         var (db, empId, cpId) = await SeedAsync();
         using var _ = db;
@@ -76,7 +77,7 @@ public class KtgTagessatzAustrittTests
 
         var auto = await svc.CalculateAsync(empId, cpId, new DateOnly(2026, 9, 26));
         Assert.Equal("A", auto!.Regel);
-        Assert.False(auto.EnthaeltFeiertag);
+        Assert.True(auto.EnthaeltFeiertag);   // L-GAV: Tagessatz = Bruttolohn inkl. Feiertag
 
         (await db.Employees.FindAsync(empId))!.KtgTagessatzManuell = 37.06m;
         await db.SaveChangesAsync();

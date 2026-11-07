@@ -289,7 +289,7 @@ public class KrankUnfallZeitgutschriftTests
     {
         var src = Quelle("Services/PayrollCalculationEngine.cs");
         int von = src.IndexOf("// ── MTP Krank/Unfall wie FLEX (Walter 19.10.2026)", StringComparison.Ordinal);
-        int bis = src.IndexOf("// ── Feiertagentschädigung auf Lohnersatz", von, StringComparison.Ordinal);
+        int bis = src.IndexOf("// ── Feiertagentschädigung auf Karenz", von, StringComparison.Ordinal);
         Assert.True(von > 0 && bis > von, "MTP-Block nicht gefunden");
         return src[von..bis];
     }
@@ -319,13 +319,12 @@ public class KrankUnfallZeitgutschriftTests
     }
 
     [Fact]
-    public void MTP_Taggeld_ueber_AddLohnersatz_ohne_Korrekturzeile()
+    public void MTP_Karenz_Taggeld_zentral_ohne_Korrekturzeile()
     {
+        // L-GAV (Walter 07.11.2026): Karenz/Taggeld über PayrollCalculations.LohnersatzRechnen
         var block = MtpBlock();
-        Assert.Contains("AddLohnersatz(LohnCodes.KrankKarenz, krank88Mtp)", block);
-        Assert.Contains("AddLohnersatz(LohnCodes.KrankTaggeld, krank80Mtp)", block);
-        Assert.Contains("AddLohnersatz(LohnCodes.UnfallKarenz, unfall88Mtp)", block);
-        Assert.Contains("AddLohnersatz(LohnCodes.UnfallTaggeld, unfall80Mtp)", block);
+        Assert.Contains("LohnersatzRechnen(krankBreakdown, krankTagesBasisMtp, karenzGrundMtp)", block);
+        Assert.Contains("LohnersatzRechnen(unfallBreakdown, krankTagesBasisMtp, karenzGrundMtp)", block);
         Assert.DoesNotContain("Korrektur Krankheit", block);
         Assert.DoesNotContain("Korrektur Unfall", block);
     }

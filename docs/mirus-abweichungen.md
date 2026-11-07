@@ -8,7 +8,7 @@ Beim Mirus-Vergleich (Parallelbetrieb, Lohn-Simulation) werden diese Punkte als 
 
 | # | Thema | OneCrew | Mirus | Seit |
 |---|---|---|---|---|
-| 1 | Rundung Anzahl × Satz (Stundenlohn, Taggeld, Nacht-/Zeitsaldo) | rappengenau | auf 5 Rp. (6.12 → 6.10) | 04.10.2026 |
+| 1 | Rundung Anzahl × Satz (Stundenlohn, Nacht-/Zeitsaldo) | rappengenau | auf 5 Rp. (6.12 → 6.10) | 04.10.2026 — Taggeld seit 07.11.2026 wie SWICA: Satz pro Tag auf 5 Rp., dann × Tage |
 | 2 | 13. ML FLEX/MTP | Basis × 8.33 % | 1/12 → ±5 Rp. | 09.09.2026 |
 | 3 | **MTP** | Garantie pro rata Kalendertage als **1005 Stundenlohn** (nie 1000); Ferien-/Feiertagsentschädigung und 13. ML auf allem; Ferien aus dem Pott (1160) mit Soll-Kürzung | «1000 Festlohn» 52/12; Entschädigungen nur auf Plusstunden; «Festlohn für bezogene Ferien» mit negativem Saldo | 04.10.2026 («hier macht Mirus Mist»); Code 1005 statt 1000: 19.10.2026 |
 | 4 | Ferien-Vorbezug | keiner — Auszahlung höchstens bis Pott | Ferien-CHF-Saldo läuft ins Minus. **Feriensaldi im Parallelvergleich daher nur grob prüfen** (Walter 05.10.2026: «Mirus macht hier total wirres Zeugs» — ab 1.1.2027 gibt es keinen negativen Topf mehr) | 06.08.2026 |
@@ -17,6 +17,7 @@ Beim Mirus-Vergleich (Parallelbetrieb, Lohn-Simulation) werden diese Punkte als 
 | 7 | Stehender 13.-ML-Saldo FLEX (Probezeit-Topf + Saldo aus Mirus) | Auszahlung nach bestandener Probezeit, beim Austritt oder spätestens Dezember | zahlt teils sofort (z.B. Januar) | 04.08.2026 |
 | 8 | **Überstunden FIX/FIX-M unter Jahr** | Zeitsaldo (901) führen; Auszahlung nur bewusst via Zulage 55.2, **höchstens bis Plus-Saldo** (nie ins Minus) — seit 10.10.2026 gesperrt: mehr Stunden als der Zeitsaldo vor Auszahlung werden abgelehnt (`UeberstundenAuszahlbar`) | zahlt 55.2 oft monatlich bar aus dem Zeitsaldo (Ausb. auf Monatsblatt) | 10.10.2026 |
 | 9 | **Manuelle Stunden auf Ferientag → falsches Ist** (Sursee, Daniela Nikollaj 750017, Jan 2026) | Ferientag = Absenz-Gutschrift 1/7, **kein** Ist; gestempelt 101.89 → Diff −8.51 → Saldo +11.37 | 01.01. Ferien + **manuell 14.40 Std** in Spalte Stunden → Ist 116.30 (= 101.90 + 14.40) → Diff +5.90 → Auszahlung 25.78 (Vortrag 19.88 + 5.90). Korr. auf Monatsblatt = 0. OneCrew **nicht** nachbauen | 10.10.2026 |
+| 10 | **Karenz FLEX/MTP** (L-GAV, D. Sägesser) | Grundlohn-Anteil × 88 %, Ferien/Feiertag/13. ML darauf; Tagessatz = SWICA-Basis (versicherter Lohn ÷ 365) | Karenz-Basis höher als die SWICA-Basis (Mamo Okt 2026: 38.28 statt 35.34 pro Tag, ≈ +8.3 %) und darauf nochmals 13. ML 1/12 → 13. ML vermutlich doppelt; Taggeld wie OneCrew (eine Zeile, ohne Feiertag) | 07.11.2026 |
 
 ### Fall #9 — Detail (Daniela Nikollaj, Sursee Jan 2026)
 

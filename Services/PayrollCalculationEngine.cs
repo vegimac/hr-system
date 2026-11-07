@@ -1794,9 +1794,9 @@ public class PayrollCalculationEngine
             decimal sum = 0;
             foreach (var kv in codeAmounts)
             {
-                // Karenz/Taggeld: Feiertag-% nur über «Feiertagentschädigung auf Lohnersatz»
-                // (AddLohnersatz), nie hier — sonst 4 % auf Versicherungstaggeld-Zulagen
-                // (TF01 Herz: 1500 × 4 % = +60 in GrossBase / 13. ML).
+                // Karenz/Taggeld: Feiertag-% nur über «Feiertagentschädigung auf Karenz»
+                // (FLEX/MTP) bzw. gar nicht (Taggeld), nie hier — sonst 4 % auf
+                // Versicherungstaggeld-Zulagen (TF01 Herz: 1500 × 4 % = +60 in GrossBase / 13. ML).
                 if (feiertagBasis && IstLohnersatzCode(kv.Key)) continue;
                 if (lohnposByCode.TryGetValue(kv.Key, out var lp) && selector(lp))
                     sum += kv.Value;
@@ -1922,10 +1922,9 @@ public class PayrollCalculationEngine
         };
 
         // ── Lohnersatz (Karenz 88 % / Taggeld 80 %) als eigene Spur ────────
-        // Nicht in codeAmounts: Ihre Häkchen Feiertag/Ferien/13. ML wirken nur,
-        // soweit der Tagessatz den Zuschlag nicht schon enthält (KtgTagessatzResult
-        // .Enthaelt…). Feiertag läuft über «Feiertagentschädigung auf Lohnersatz»
-        // (2-Monats-Regel), nie über die normale Feiertag-Basis.
+        // Nicht in codeAmounts, nie über die normale Feiertag-Basis. Nur noch FIX/
+        // FIX-M nutzt die Häkchen (13. ML auf der Karenz). FLEX/MTP rechnen die
+        // Zuschläge der Karenz direkt nach L-GAV (karenzSumme…, Walter 07.11.2026).
         var lohnersatzBetraege = new Dictionary<string, decimal>();
         void AddLohnersatz(string code, decimal betrag)
         {
@@ -2524,32 +2523,6 @@ public class PayrollCalculationEngine
             unfallBreakdown = unfallBreakdown.Select(t => t with { InKarenz = false }).ToList();
         }
 
-        // ── Feiertagentschädigung auf Lohnersatz: 2-Monats-Grenze ─────────
-        // Walter-Vorgabe 04.08.2026: Der KTG-/UVG-Tagessatz (KtgTagessatzService)
-        // enthält KEINE Feiertag-Komponente mehr (Feiertagsentschädigung ist
-        // AHV-pflichtiger LOHN, kein SV-freies Versicherungs-Taggeld). Während
-        // Krankheit/Unfall wird die Feiertagsentschädigung stattdessen als
-        // separate, voll SV-pflichtige Lohnzeile auf den Lohnersatz-Beträgen
-        // (Karenz 88% + Taggeld 80%, Codes 70/70.2/60/60.2) gerechnet — aber
-        // NUR solange die zusammenhängende Krank-/Unfall-Absenz noch keine
-        // 2 vollen Monate dauert: Ketten-Beginn + 2 Monate ≤ Periodenende
-        // → keine Zahlung mehr. Hintergrund ist die amtliche Kürzungsregel,
-        // wonach der Feiertagsanspruch bei längerer Absenz um 0.5 Feiertage
-        // pro vollen Absenz-Monat gekürzt wird — hier bewusst vereinfacht
-        // als harte 2-Monats-Grenze umgesetzt (Walter 04.08.2026).
-        // Die Kette wird über KRANK- und UNFALL-Absenzen GEMEINSAM gebildet
-        // (nahtloser Übergang Unfall→Krank bleibt EINE durchgehende Absenz).
-        bool feiertagAufLohnersatzErlaubt = false;
-        if (krankBreakdown.Count > 0 || unfallBreakdown.Count > 0)
-        {
-            var ersterLohnersatzTag = krankBreakdown.Select(t => t.Datum)
-                .Concat(unfallBreakdown.Select(t => t.Datum))
-                .Min();
-            var kettenBeginn = await GetLohnersatzKettenBeginnAsync(employeeId, ersterLohnersatzTag)
-                               ?? ersterLohnersatzTag;
-            feiertagAufLohnersatzErlaubt = IsFeiertagAufLohnersatzErlaubt(kettenBeginn, periodTo);
-        }
-
         if (isMTP)
         {
             // ── MTP ──────────────────────────────────────────────────────
@@ -2845,41 +2818,23 @@ public class PayrollCalculationEngine
             // Für Tage innerhalb der BVG-Wartefrist (3 Kalendermonate ab
             // AU-Beginn) wird die fehlende Differenz zu 100% in deltaBvg
             // geschoben → BVG-Basis steht unverändert auf bisherigem Lohn.
-            decimal krankTagesBasisMtp = 0m;
-            bool tagessatzMitFeiertagMtp = false, tagessatzMitFerienMtp = false, tagessatzMit13mlMtp = false;
+            // L-GAV (Walter 07.11.2026, D. Sägesser): Tagessatz100 = Bruttolohn
+            // inkl. Ferien/Feiertag/13. ML. Taggeld 80 % = eine Zeile, keine Zuschläge.
+            // Karenz = Grundlohn-Anteil × 88 %; Ferien, Feiertag, 13. ML kommen
+            // weiter unten als eigene Zeilen dazu (karenzSummeMtp).
+            decimal krankTagesBasisMtp = 0m, karenzGrundMtp = 0m;
             if (krankBreakdown.Count > 0 || unfallBreakdown.Count > 0)
             {
                 var ktgMtp = await _ktgService.CalculateAsync(employeeId, companyProfileId, periodTo);
+                decimal grundFallback = guaranteedH * hourlyRate * 52m / 365m;
                 krankTagesBasisMtp = ktgMtp?.Tagessatz100
-                                  ?? (guaranteedH * hourlyRate * 52m / 365m);
-                tagessatzMitFeiertagMtp = ktgMtp?.EnthaeltFeiertag ?? false;
-                tagessatzMitFerienMtp   = ktgMtp?.EnthaeltFerien ?? false;
-                tagessatzMit13mlMtp     = ktgMtp?.Enthaelt13ml ?? false;
+                                  ?? grundFallback * BruttoAufschlag(vacationPct, holidayPct, thirteenthPct);
+                karenzGrundMtp     = ktgMtp?.KarenzGrundTagessatz ?? grundFallback;
             }
-            decimal krank88Mtp = 0m, krank80Mtp = 0m;
-            decimal krankTage88Mtp = 0m, krankTage80Mtp = 0m;
-            decimal krankBvgKorrekturMtp = 0m;
-            foreach (var t in krankBreakdown)
-            {
-                decimal tagWert = krankTagesBasisMtp * (t.Prozent / 100m);
-                if (t.InKarenz)
-                {
-                    krank88Mtp += tagWert * 0.88m;
-                    krankTage88Mtp += t.Prozent / 100m;
-                    if (t.BvgAuf100) krankBvgKorrekturMtp += tagWert * 0.12m;  // fehlende 12%
-                }
-                else
-                {
-                    krank80Mtp += tagWert * 0.80m;
-                    krankTage80Mtp += t.Prozent / 100m;
-                    if (t.BvgAuf100) krankBvgKorrekturMtp += tagWert * 0.20m;  // fehlende 20%
-                }
-            }
-            krank88Mtp           = PayrollCalculations.Rappen(krank88Mtp);
-            krank80Mtp           = PayrollCalculations.Rappen(krank80Mtp);
-            krankBvgKorrekturMtp = PayrollCalculations.Rappen(krankBvgKorrekturMtp);
-            AddLohnersatz(LohnCodes.KrankKarenz, krank88Mtp);
-            AddLohnersatz(LohnCodes.KrankTaggeld, krank80Mtp);
+            var krankMtp = LohnersatzRechnen(krankBreakdown, krankTagesBasisMtp, karenzGrundMtp);
+            decimal krank88Mtp = krankMtp.Karenz, krank80Mtp = krankMtp.Taggeld;
+            decimal krankTage88Mtp = krankMtp.TageKarenz, krankTage80Mtp = krankMtp.TageTaggeld;
+            decimal krankBvgKorrekturMtp = krankMtp.BvgKorrektur;
 
             // Keine Korrektur 2050 — Garantie schon um Zeitgutschrift gekürzt (wie FLEX).
             if (krank88Mtp > 0)
@@ -2889,7 +2844,7 @@ public class PayrollCalculationEngine
                     code    = LohnCodes.KrankKarenz,
                     anzahl  = (decimal?)krankTage88Mtp,
                     prozent = (decimal?)88m,
-                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisMtp),
+                    basis   = (decimal?)PayrollCalculations.Rappen(karenzGrundMtp),
                     betrag  = krank88Mtp,
                     accrued = (decimal?)krank88Mtp
                 });
@@ -2902,31 +2857,10 @@ public class PayrollCalculationEngine
             // (Default 2 Tage) und eigener BVG-Wartefrist — Unfall hat seine
             // separate 3-Monate-Wartefrist, unabhängig von Krank (andere
             // Versicherung, daher eigene Zählung).
-            decimal unfallTagesBasisMtp = krankTagesBasisMtp;  // gleicher Tageswert
-            decimal unfall88Mtp = 0m, unfall80Mtp = 0m;
-            decimal unfallTage88Mtp = 0m, unfallTage80Mtp = 0m;
-            decimal unfallBvgKorrekturMtp = 0m;
-            foreach (var t in unfallBreakdown)
-            {
-                decimal tagWert = unfallTagesBasisMtp * (t.Prozent / 100m);
-                if (t.InKarenz)
-                {
-                    unfall88Mtp += tagWert * 0.88m;
-                    unfallTage88Mtp += t.Prozent / 100m;
-                    if (t.BvgAuf100) unfallBvgKorrekturMtp += tagWert * 0.12m;
-                }
-                else
-                {
-                    unfall80Mtp += tagWert * 0.80m;
-                    unfallTage80Mtp += t.Prozent / 100m;
-                    if (t.BvgAuf100) unfallBvgKorrekturMtp += tagWert * 0.20m;
-                }
-            }
-            unfall88Mtp           = PayrollCalculations.Rappen(unfall88Mtp);
-            unfall80Mtp           = PayrollCalculations.Rappen(unfall80Mtp);
-            unfallBvgKorrekturMtp = PayrollCalculations.Rappen(unfallBvgKorrekturMtp);
-            AddLohnersatz(LohnCodes.UnfallKarenz, unfall88Mtp);
-            AddLohnersatz(LohnCodes.UnfallTaggeld, unfall80Mtp);
+            var unfallMtp = LohnersatzRechnen(unfallBreakdown, krankTagesBasisMtp, karenzGrundMtp);
+            decimal unfall88Mtp = unfallMtp.Karenz, unfall80Mtp = unfallMtp.Taggeld;
+            decimal unfallTage88Mtp = unfallMtp.TageKarenz, unfallTage80Mtp = unfallMtp.TageTaggeld;
+            decimal unfallBvgKorrekturMtp = unfallMtp.BvgKorrektur;
 
             if (unfall88Mtp > 0)
             {
@@ -2935,7 +2869,7 @@ public class PayrollCalculationEngine
                     code    = LohnCodes.UnfallKarenz,
                     anzahl  = (decimal?)unfallTage88Mtp,
                     prozent = (decimal?)88m,
-                    basis   = (decimal?)PayrollCalculations.Rappen(unfallTagesBasisMtp),
+                    basis   = (decimal?)PayrollCalculations.Rappen(karenzGrundMtp),
                     betrag  = unfall88Mtp,
                     accrued = (decimal?)unfall88Mtp
                 });
@@ -2943,40 +2877,27 @@ public class PayrollCalculationEngine
                 Grundzeile(LohnCodes.UnfallKarenz, unfall88Mtp);
             }
 
-            // ── Feiertagentschädigung auf Lohnersatz (Walter-Vorgabe 04.08.2026) ──
-            // Die Feiertagsentschädigung ist AHV-pflichtiger LOHN und steckt darum
-            // NICHT mehr im (SV-freien) KTG-/UVG-Tagessatz (KtgTagessatzService:
-            // Stundenlohn + Ferien% + 13.ML%, OHNE Feiertag%). Während Krankheit/
-            // Unfall wird sie hier separat auf der Summe der Lohnersatz-Beträge
-            // der Periode gerechnet (Karenz 88% + Taggeld 80%, Codes 70/70.2/
-            // 60/60.2 — keine Doppelzählung, weil deren Tagessatz die Feiertag-
-            // Komponente nicht mehr enthält). Voll SV-pflichtig wie die normale
-            // Feiertagentschädigung: die Zeile liegt VOR dem mainLohn-Snapshot
-            // → SV nach den Häkchen von 195.4 (Grundzeile).
-            // Basis = Lohnersatz-Positionen mit Häkchen «Basis Feiertag» (Walter
-            // 04.10.2026). Die Zeile läuft in der Lohnersatz-Spur: Ferien/13. ML
-            // darauf nur, wenn der Tagessatz sie nicht schon enthält.
-            // Zeitliche Grenze: feiertagAufLohnersatzErlaubt (2-Monats-Regel,
-            // siehe Kommentar bei der Berechnung nach den Tages-Breakdowns).
-            decimal lohnersatzSummeMtp = LohnersatzNachFlag(lp => lp.ZaehltAlsBasisFeiertag, ohneKatalog: true);
-            if (feiertagAufLohnersatzErlaubt && !tagessatzMitFeiertagMtp && holidayPct > 0 && lohnersatzSummeMtp > 0)
+            // ── Feiertagentschädigung auf Karenz (L-GAV, Walter 07.11.2026) ──
+            // Karenz = Grundlohn-Anteil × 88 % → Feiertag % darauf als eigene,
+            // voll SV-pflichtige Zeile (SV nach den Häkchen von 1161, Grundzeile).
+            // Ferien und 13. ML der Karenz laufen unten über die normale Ferien-
+            // und 13.-Basis (karenzSummeMtp). Das Taggeld (80 %) bekommt nichts:
+            // sein Tagessatz enthält Ferien, Feiertag und 13. ML schon.
+            decimal karenzSummeMtp = krank88Mtp + unfall88Mtp;
+            decimal feiertagKarenzMtp = holidayPct > 0 ? Round05(karenzSummeMtp * holidayPct / 100m) : 0m;
+            if (feiertagKarenzMtp > 0)
             {
-                decimal feiertagLohnersatzMtp = PayrollCalculations.Rappen(lohnersatzSummeMtp * holidayPct / 100m);
-                if (feiertagLohnersatzMtp > 0)
-                {
-                    lohnLines.Add(new {
-                        bezeichnung = "Feiertagentschädigung auf Lohnersatz",
-                        code    = LohnCodes.FeiertagEntschaedigung,
-                        anzahl  = (decimal?)null,
-                        prozent = (decimal?)holidayPct,
-                        basis   = (decimal?)PayrollCalculations.Rappen(lohnersatzSummeMtp),
-                        betrag  = feiertagLohnersatzMtp,
-                        accrued = (decimal?)feiertagLohnersatzMtp
-                    });
-                    totalLohn += feiertagLohnersatzMtp;
-                    Grundzeile(LohnCodes.FeiertagEntschaedigung, feiertagLohnersatzMtp);
-                    AddLohnersatz(LohnCodes.FeiertagEntschaedigung, feiertagLohnersatzMtp);
-                }
+                lohnLines.Add(new {
+                    bezeichnung = "Feiertagentschädigung auf Karenz",
+                    code    = LohnCodes.FeiertagEntschaedigung,
+                    anzahl  = (decimal?)null,
+                    prozent = (decimal?)holidayPct,
+                    basis   = (decimal?)karenzSummeMtp,
+                    betrag  = feiertagKarenzMtp,
+                    accrued = (decimal?)feiertagKarenzMtp
+                });
+                totalLohn += feiertagKarenzMtp;
+                Grundzeile(LohnCodes.FeiertagEntschaedigung, feiertagKarenzMtp);
             }
 
             // Nacht-Saldo beim letzten Lohn VOR den Flag-Summen: 55.10-Flags steuern
@@ -3007,8 +2928,8 @@ public class PayrollCalculationEngine
             // Zusätzlich tragen alle Zulagen bei, deren Lohnart die Flags trägt.
             // Flag-Summen = exakte Produkte (nicht Zeilen-CHF)
             decimal feiertagBasisExact = SumByFlag(lp => lp.ZaehltAlsBasisFeiertag, feiertagBasis: true);
-            decimal ferienBasisExact   = SumByFlag(lp => lp.ZaehltAlsBasisFerien)
-                + (tagessatzMitFerienMtp ? 0m : LohnersatzNachFlag(lp => lp.ZaehltAlsBasisFerien, ohneKatalog: false));
+            // + Karenz (Grundlohn × 88 %): Ferien darauf wie auf Arbeitsstunden (L-GAV).
+            decimal ferienBasisExact   = SumByFlag(lp => lp.ZaehltAlsBasisFerien) + karenzSummeMtp;
             decimal ferienEntExact     = ferienBasisExact * vacationPct / 100m;
             decimal feiertagEntExact   = feiertagBasisExact * holidayPct / 100m;
             // Lohnzeilen kaufmännisch auf 5 Rappen (Swissdec/Schweizer Praxis, Walter 09.09.2026);
@@ -3239,10 +3160,10 @@ public class PayrollCalculationEngine
             decimal dreizehnterMtp = 0;
             decimal thirteenthPctForSaldo  = thirteenthPct;   // Wird akkumuliert …
             decimal prevThirteenthForSaldo = prevThirteenth;
-            // Basis = Flag-Summe (inkl. Austritts-Auszahlungen) + Lohnersatz mit
-            // Häkchen, soweit der Tagessatz den 13. nicht schon enthält (Walter 04.10.2026).
-            decimal lohnersatz13Mtp = tagessatzMit13mlMtp ? 0m
-                : LohnersatzNachFlag(lp => lp.ZaehltAlsBasis13ml, ohneKatalog: false);
+            // Basis = Flag-Summe (inkl. Austritts-Auszahlungen) + Karenz und ihre
+            // Feiertagentschädigung (L-GAV: 13. ML auf Grundlohn + Ferien + Feiertag,
+            // Walter 07.11.2026). Taggeld nie — sein Tagessatz enthält den 13. schon.
+            decimal lohnersatz13Mtp = karenzSummeMtp + feiertagKarenzMtp;
             decimal mtp13BasisExact = SumByFlag(lp => lp.ZaehltAlsBasis13ml) + lohnersatz13Mtp;
             // Angezeigte Basis aus den Beleg-Beträgen (Walter 26.09.2026); gerechnet
             // wird weiter mit mtp13BasisExact.
@@ -3374,7 +3295,7 @@ public class PayrollCalculationEngine
                     code    = LohnCodes.UnfallTaggeld,
                     anzahl  = (decimal?)unfallTage80Mtp,
                     prozent = (decimal?)80m,
-                    basis   = (decimal?)PayrollCalculations.Rappen(unfallTagesBasisMtp),
+                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisMtp),
                     betrag  = unfall80Mtp,
                     accrued = (decimal?)unfall80Mtp
                 });
@@ -3525,91 +3446,39 @@ public class PayrollCalculationEngine
             decimal nachtKompBrutto  = PayrollCalculations.Rappen(nachtKompExact);
             decimal feiertagAusz     = PayrollCalculations.Rappen(feiertagAuszExact);
 
-            // ── Krankheit/Unfall UTP: 88%/80% vom KTG-Tagessatz ──────────────
-            // Basis = Tagessatz100 aus KtgTagessatzService (Regel A: MaxPartTimeHours
-            // × stdLohnBrutto × 52/365; Regel B: AHV-Ø × 12/365). Er enthält Ferien
-            // und 13. ML, aber keinen Feiertag (→ «Feiertagentschädigung auf
-            // Lohnersatz»). Gerechnet VOR den Flag-Summen (Walter 04.10.2026), damit
-            // die Häkchen von 70.1/70.2/60.2/60.3 wirken — Zuschläge, die der
-            // Tagessatz schon enthält, kommen trotzdem nicht doppelt.
-            // Unfall nutzt denselben Tagessatz, eigene Tage-Grenze.
-            decimal krankTagesBasisUtp = 0m;
-            bool tagessatzMitFeiertagUtp = false, tagessatzMitFerienUtp = false, tagessatzMit13mlUtp = false;
+            // ── Krankheit/Unfall UTP: Karenz 88 % / Taggeld 80 % ─────────────
+            // L-GAV (Walter 07.11.2026, D. Sägesser): Tagessatz100 aus dem
+            // KtgTagessatzService = Bruttolohn pro Kalendertag inkl. Ferien,
+            // Feiertag und 13. ML (Regel A: Filial-Stunden × Brutto-Stundenlohn
+            // × 52/365; Regel B: AHV-Ø × 12/365). Taggeld = eine Zeile ohne
+            // Zuschläge. Karenz = Grundlohn-Anteil × 88 %; Ferien, Feiertag und
+            // 13. ML darauf als eigene Zeilen (karenzSummeUtp). Gerechnet VOR den
+            // Flag-Summen. Unfall nutzt denselben Tagessatz, eigene Tage-Grenze.
+            decimal krankTagesBasisUtp = 0m, karenzGrundUtp = 0m;
             if (krankBreakdown.Count > 0 || unfallBreakdown.Count > 0)
             {
                 var ktgUtp = await _ktgService.CalculateAsync(employeeId, companyProfileId, periodTo);
                 krankTagesBasisUtp = ktgUtp?.Tagessatz100 ?? 0m;
-                tagessatzMitFeiertagUtp = ktgUtp?.EnthaeltFeiertag ?? false;
-                tagessatzMitFerienUtp   = ktgUtp?.EnthaeltFerien ?? false;
-                tagessatzMit13mlUtp     = ktgUtp?.Enthaelt13ml ?? false;
+                karenzGrundUtp     = ktgUtp?.KarenzGrundTagessatz ?? 0m;
             }
-            decimal krank88Utp = 0m, krank80Utp = 0m;
-            decimal krankTage88Utp = 0m, krankTage80Utp = 0m;
-            decimal krankBvgKorrekturUtp = 0m;
-            decimal unfall88Utp = 0m, unfall80Utp = 0m;
-            decimal unfallTage88Utp = 0m, unfallTage80Utp = 0m;
-            decimal unfallBvgKorrekturUtp = 0m;
-            if (krankTagesBasisUtp > 0)
-            {
-                foreach (var t in krankBreakdown)
-                {
-                    decimal tagWert = krankTagesBasisUtp * (t.Prozent / 100m);
-                    if (t.InKarenz)
-                    {
-                        krank88Utp     += tagWert * 0.88m;
-                        krankTage88Utp += t.Prozent / 100m;
-                        if (t.BvgAuf100) krankBvgKorrekturUtp += tagWert * 0.12m;
-                    }
-                    else
-                    {
-                        krank80Utp     += tagWert * 0.80m;
-                        krankTage80Utp += t.Prozent / 100m;
-                        if (t.BvgAuf100) krankBvgKorrekturUtp += tagWert * 0.20m;
-                    }
-                }
-                foreach (var t in unfallBreakdown)
-                {
-                    decimal tagWert = krankTagesBasisUtp * (t.Prozent / 100m);
-                    if (t.InKarenz)
-                    {
-                        unfall88Utp     += tagWert * 0.88m;
-                        unfallTage88Utp += t.Prozent / 100m;
-                        if (t.BvgAuf100) unfallBvgKorrekturUtp += tagWert * 0.12m;
-                    }
-                    else
-                    {
-                        unfall80Utp     += tagWert * 0.80m;
-                        unfallTage80Utp += t.Prozent / 100m;
-                        if (t.BvgAuf100) unfallBvgKorrekturUtp += tagWert * 0.20m;
-                    }
-                }
-                krank88Utp            = PayrollCalculations.Rappen(krank88Utp);
-                krank80Utp            = PayrollCalculations.Rappen(krank80Utp);
-                krankBvgKorrekturUtp  = PayrollCalculations.Rappen(krankBvgKorrekturUtp);
-                unfall88Utp           = PayrollCalculations.Rappen(unfall88Utp);
-                unfall80Utp           = PayrollCalculations.Rappen(unfall80Utp);
-                unfallBvgKorrekturUtp = PayrollCalculations.Rappen(unfallBvgKorrekturUtp);
-            }
-            AddLohnersatz(LohnCodes.KrankKarenz, krank88Utp);
-            AddLohnersatz(LohnCodes.KrankTaggeld, krank80Utp);
-            AddLohnersatz(LohnCodes.UnfallKarenz, unfall88Utp);
-            AddLohnersatz(LohnCodes.UnfallTaggeld, unfall80Utp);
+            var krankUtp  = krankTagesBasisUtp > 0
+                ? LohnersatzRechnen(krankBreakdown, krankTagesBasisUtp, karenzGrundUtp)
+                : new LohnersatzBetraege(0m, 0m, 0m, 0m, 0m);
+            var unfallUtp = krankTagesBasisUtp > 0
+                ? LohnersatzRechnen(unfallBreakdown, krankTagesBasisUtp, karenzGrundUtp)
+                : new LohnersatzBetraege(0m, 0m, 0m, 0m, 0m);
+            decimal krank88Utp = krankUtp.Karenz, krank80Utp = krankUtp.Taggeld;
+            decimal krankTage88Utp = krankUtp.TageKarenz, krankTage80Utp = krankUtp.TageTaggeld;
+            decimal krankBvgKorrekturUtp = krankUtp.BvgKorrektur;
+            decimal unfall88Utp = unfallUtp.Karenz, unfall80Utp = unfallUtp.Taggeld;
+            decimal unfallTage88Utp = unfallUtp.TageKarenz, unfallTage80Utp = unfallUtp.TageTaggeld;
+            decimal unfallBvgKorrekturUtp = unfallUtp.BvgKorrektur;
 
-            // ── Feiertagentschädigung auf Lohnersatz (Walter-Vorgabe 04.08.2026) ──
-            // Die Feiertagsentschädigung ist AHV-pflichtiger LOHN und steckt nicht
-            // im KTG-/UVG-Tagessatz. Während Krankheit/Unfall wird sie separat auf
-            // den Lohnersatz-Positionen mit Häkchen «Basis Feiertag» gerechnet
-            // (Walter 04.10.2026). SV nach den Häkchen von 195.2 (Grundzeile);
-            // Ferien/13. ML darauf nur, wenn der Tagessatz sie nicht enthält.
-            // Zeitliche Grenze: feiertagAufLohnersatzErlaubt (2-Monats-Regel,
-            // siehe Kommentar bei der Berechnung nach den Tages-Breakdowns).
-            decimal lohnersatzSummeUtp = LohnersatzNachFlag(lp => lp.ZaehltAlsBasisFeiertag, ohneKatalog: true);
-            decimal feiertagLohnersatzUtp = 0m;
-            if (feiertagAufLohnersatzErlaubt && !tagessatzMitFeiertagUtp && holidayPct > 0 && lohnersatzSummeUtp > 0)
-            {
-                feiertagLohnersatzUtp = PayrollCalculations.Rappen(lohnersatzSummeUtp * holidayPct / 100m);
-                AddLohnersatz(LohnCodes.FeiertagEntschaedigung, feiertagLohnersatzUtp);
-            }
+            // ── Feiertagentschädigung auf Karenz (L-GAV, Walter 07.11.2026) ──
+            // Feiertag % auf der Karenz (Grundlohn × 88 %), eigene Zeile, voll
+            // SV-pflichtig (Häkchen 1161). Taggeld: nichts — schon im Tagessatz.
+            decimal karenzSummeUtp = krank88Utp + unfall88Utp;
+            decimal feiertagKarenzUtp = holidayPct > 0 ? Round05(karenzSummeUtp * holidayPct / 100m) : 0m;
 
             // UTP: Feiertag-Basis aus Lohnpositions-Flags
             //   → Stundenlohn (20.1) trägt ZaehltAlsBasisFeiertag=true
@@ -3698,25 +3567,24 @@ public class PayrollCalculationEngine
                     Grundzeile(t.Code, t.Betrag);
                 }
             }
-            if (feiertagLohnersatzUtp > 0)
+            if (feiertagKarenzUtp > 0)
             {
                 lohnLines.Add(new {
-                    bezeichnung = "Feiertagentschädigung auf Lohnersatz",
+                    bezeichnung = "Feiertagentschädigung auf Karenz",
                     code    = LohnCodes.FeiertagEntschaedigung,
                     anzahl  = (decimal?)null,
                     prozent = (decimal?)holidayPct,
-                    basis   = (decimal?)PayrollCalculations.Rappen(lohnersatzSummeUtp),
-                    betrag  = feiertagLohnersatzUtp,
-                    accrued = (decimal?)feiertagLohnersatzUtp
+                    basis   = (decimal?)karenzSummeUtp,
+                    betrag  = feiertagKarenzUtp,
+                    accrued = (decimal?)feiertagKarenzUtp
                 });
-                totalLohn += feiertagLohnersatzUtp;
-                Grundzeile(LohnCodes.FeiertagEntschaedigung, feiertagLohnersatzUtp);
+                totalLohn += feiertagKarenzUtp;
+                Grundzeile(LohnCodes.FeiertagEntschaedigung, feiertagKarenzUtp);
             }
 
-            // UTP-Kaskade: Ferien-Basis nach den Häkchen (Stundenlohn, Nacht …),
-            // Lohnersatz nur, wenn der Tagessatz die Ferien nicht schon enthält.
-            decimal ferienBasisUtpExact = SumByFlag(lp => lp.ZaehltAlsBasisFerien)
-                + (tagessatzMitFerienUtp ? 0m : LohnersatzNachFlag(lp => lp.ZaehltAlsBasisFerien, ohneKatalog: false));
+            // UTP-Kaskade: Ferien-Basis nach den Häkchen (Stundenlohn, Nacht …)
+            // + Karenz (Grundlohn × 88 %, L-GAV). Taggeld nie (Ferien schon im Satz).
+            decimal ferienBasisUtpExact = SumByFlag(lp => lp.ZaehltAlsBasisFerien) + karenzSummeUtp;
             decimal ferienEntExactUtp   = ferienBasisUtpExact * vacationPct / 100m;
             decimal ferienEnt           = Round05(ferienEntExactUtp);   // 5 Rappen (Walter 09.09.2026)
             // Filial-Schalter «Ferienentschädigung monatlich auszahlen» (Walter
@@ -3886,11 +3754,10 @@ public class PayrollCalculationEngine
             if (thirteenthPct > 0)
             {
                 // Basis = Flag-Summe (inkl. Pott-Ferienbezug + Austritts-Auszahlungen)
-                // + Lohnersatz mit Häkchen, soweit der Tagessatz den 13. nicht
-                // enthält (Walter 04.10.2026). Fliesst identisch in Auszahlung,
-                // Probezeit-Rückstellung (basis13ForSaldoUtp) UND Verfall.
-                decimal lohnersatz13Utp = tagessatzMit13mlUtp ? 0m
-                    : LohnersatzNachFlag(lp => lp.ZaehltAlsBasis13ml, ohneKatalog: false);
+                // + Karenz und ihre Feiertagentschädigung (L-GAV: 13. ML auf Grundlohn
+                // + Ferien + Feiertag, Walter 07.11.2026; Taggeld nie). Fliesst identisch
+                // in Auszahlung, Probezeit-Rückstellung (basis13ForSaldoUtp) UND Verfall.
+                decimal lohnersatz13Utp = karenzSummeUtp + feiertagKarenzUtp;
                 decimal basis13Exact = SumByFlag(lp => lp.ZaehltAlsBasis13ml) + lohnersatz13Utp;
                 // Lohnform (Walter 02.11.2026): Stundenlohn 1201, reiner Lektionenlohn 1202.
                 decimal lektionenBasis13 = LektionenBasis(lp => lp.ZaehltAlsBasis13ml);
@@ -4009,7 +3876,7 @@ public class PayrollCalculationEngine
                     code    = LohnCodes.KrankKarenz,
                     anzahl  = (decimal?)krankTage88Utp,
                     prozent = (decimal?)88m,
-                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisUtp),
+                    basis   = (decimal?)PayrollCalculations.Rappen(karenzGrundUtp),
                     betrag  = krank88Utp,
                     accrued = (decimal?)krank88Utp
                 });
@@ -4044,7 +3911,7 @@ public class PayrollCalculationEngine
                     code    = LohnCodes.UnfallKarenz,
                     anzahl  = (decimal?)unfallTage88Utp,
                     prozent = (decimal?)88m,
-                    basis   = (decimal?)PayrollCalculations.Rappen(krankTagesBasisUtp),
+                    basis   = (decimal?)PayrollCalculations.Rappen(karenzGrundUtp),
                     betrag  = unfall88Utp,
                     accrued = (decimal?)unfall88Utp
                 });
@@ -4299,30 +4166,13 @@ public class PayrollCalculationEngine
             // nicht auf dem bereits kurz-pro-ratierten monthSalary (sonst würde
             // der Abzug in der Austritts-Kurzperiode doppelt reduziert).
             decimal krankTagesBasisFix = monthSalaryFull * 12m / 365m;
-            decimal krankAbzugFix = 0m, krank88Fix = 0m, krank80Fix = 0m;
-            decimal krankTage88Fix = 0m, krankTage80Fix = 0m;
-            decimal krankBvgKorrekturFix = 0m;
-            foreach (var t in krankBreakdown)
-            {
-                decimal tagWert = krankTagesBasisFix * (t.Prozent / 100m);
-                krankAbzugFix += tagWert;
-                if (t.InKarenz)
-                {
-                    krank88Fix += tagWert * 0.88m;
-                    krankTage88Fix += t.Prozent / 100m;
-                    if (t.BvgAuf100) krankBvgKorrekturFix += tagWert * 0.12m;
-                }
-                else
-                {
-                    krank80Fix += tagWert * 0.80m;
-                    krankTage80Fix += t.Prozent / 100m;
-                    if (t.BvgAuf100) krankBvgKorrekturFix += tagWert * 0.20m;
-                }
-            }
-            krankAbzugFix        = PayrollCalculations.Rappen(krankAbzugFix);
-            krank88Fix           = PayrollCalculations.Rappen(krank88Fix);
-            krank80Fix           = PayrollCalculations.Rappen(krank80Fix);
-            krankBvgKorrekturFix = PayrollCalculations.Rappen(krankBvgKorrekturFix);
+            // Karenz/Taggeld zentral (L-GAV 88 % / 80 %, Taggeld pro Tag auf 5 Rp.
+            // wie SWICA — Walter 07.11.2026). FIX: Grundlohn-Anteil = voller Satz.
+            decimal krankAbzugFix = PayrollCalculations.Rappen(krankBreakdown.Sum(t => krankTagesBasisFix * (t.Prozent / 100m)));
+            var krankLeFix = LohnersatzRechnen(krankBreakdown, krankTagesBasisFix, krankTagesBasisFix);
+            decimal krank88Fix = krankLeFix.Karenz, krank80Fix = krankLeFix.Taggeld;
+            decimal krankTage88Fix = krankLeFix.TageKarenz, krankTage80Fix = krankLeFix.TageTaggeld;
+            decimal krankBvgKorrekturFix = krankLeFix.BvgKorrektur;
             AddLohnersatz(LohnCodes.KrankKarenz, krank88Fix);
             AddLohnersatz(LohnCodes.KrankTaggeld, krank80Fix);
 
@@ -4361,30 +4211,13 @@ public class PayrollCalculationEngine
             // (Default 2) aus CompanyProfile.KarenzTageMaxUnfall. BVG-
             // Wartefrist läuft separat (eigene 3 Monate ab Unfall-Beginn).
             decimal unfallTagesBasisFix = krankTagesBasisFix;
-            decimal unfallAbzugFix = 0m, unfall88Fix = 0m, unfall80Fix = 0m;
-            decimal unfallTage88Fix = 0m, unfallTage80Fix = 0m;
-            decimal unfallBvgKorrekturFix = 0m;
-            foreach (var t in unfallBreakdown)
-            {
-                decimal tagWert = unfallTagesBasisFix * (t.Prozent / 100m);
-                unfallAbzugFix += tagWert;
-                if (t.InKarenz)
-                {
-                    unfall88Fix += tagWert * 0.88m;
-                    unfallTage88Fix += t.Prozent / 100m;
-                    if (t.BvgAuf100) unfallBvgKorrekturFix += tagWert * 0.12m;
-                }
-                else
-                {
-                    unfall80Fix += tagWert * 0.80m;
-                    unfallTage80Fix += t.Prozent / 100m;
-                    if (t.BvgAuf100) unfallBvgKorrekturFix += tagWert * 0.20m;
-                }
-            }
-            unfallAbzugFix        = PayrollCalculations.Rappen(unfallAbzugFix);
-            unfall88Fix           = PayrollCalculations.Rappen(unfall88Fix);
-            unfall80Fix           = PayrollCalculations.Rappen(unfall80Fix);
-            unfallBvgKorrekturFix = PayrollCalculations.Rappen(unfallBvgKorrekturFix);
+            // Karenz/Taggeld zentral (L-GAV 88 % / 80 %, Taggeld pro Tag auf 5 Rp.
+            // wie SWICA — Walter 07.11.2026). FIX: Grundlohn-Anteil = voller Satz.
+            decimal unfallAbzugFix = PayrollCalculations.Rappen(unfallBreakdown.Sum(t => unfallTagesBasisFix * (t.Prozent / 100m)));
+            var unfallLeFix = LohnersatzRechnen(unfallBreakdown, unfallTagesBasisFix, unfallTagesBasisFix);
+            decimal unfall88Fix = unfallLeFix.Karenz, unfall80Fix = unfallLeFix.Taggeld;
+            decimal unfallTage88Fix = unfallLeFix.TageKarenz, unfallTage80Fix = unfallLeFix.TageTaggeld;
+            decimal unfallBvgKorrekturFix = unfallLeFix.BvgKorrektur;
             AddLohnersatz(LohnCodes.UnfallKarenz, unfall88Fix);
             AddLohnersatz(LohnCodes.UnfallTaggeld, unfall80Fix);
 
@@ -4944,75 +4777,7 @@ public class PayrollCalculationEngine
     }
 
     /// <summary>
-    /// Ermittelt den Beginn der ZUSAMMENHÄNGENDEN Krank-/Unfall-Absenz-Kette,
-    /// die den übergebenen Absenz-Tag enthält (Walter-Vorgabe 04.08.2026 —
-    /// 2-Monats-Grenze der «Feiertagentschädigung auf Lohnersatz»).
-    /// KRANK und UNFALL werden GEMEINSAM gekettet: Ranges, die nahtlos
-    /// (Lücke ≤ 1 Tag, analog KarenzService-AU-Ketten) oder überlappend
-    /// aneinander anschliessen, gelten als EINE durchgehende Absenz — auch
-    /// über Perioden-/Monatsgrenzen hinweg. Gibt null zurück, wenn keine
-    /// Absenz den Tag abdeckt.
-    /// </summary>
-    private async Task<DateOnly?> GetLohnersatzKettenBeginnAsync(int employeeId, DateOnly anchorTag)
-    {
-        // Felder ROH laden, Kettung im Speicher (Datum/Zeit-Regelwerk 13.07.2026).
-        var ranges = await _db.Absences
-            .Where(a => a.EmployeeId == employeeId
-                     && (a.AbsenceType == "KRANK" || a.AbsenceType == "UNFALL")
-                     && a.DateFrom <= anchorTag)
-            .Select(a => new { a.DateFrom, a.DateTo })
-            .ToListAsync();
-
-        return FindLohnersatzKettenBeginn(
-            ranges.Select(r => (r.DateFrom, r.DateTo)), anchorTag);
-    }
-
-    /// <summary>
-    /// Reine Ketten-Logik (statisch, unit-testbar): merged überlappende/nahtlose
-    /// Ranges (Lücke ≤ 1 Tag) und liefert den Beginn der Kette, die den
-    /// anchorTag enthält — sonst null.
-    /// </summary>
-    public static DateOnly? FindLohnersatzKettenBeginn(
-        IEnumerable<(DateOnly Von, DateOnly Bis)> ranges, DateOnly anchorTag)
-    {
-        var sorted = ranges
-            .OrderBy(r => r.Von).ThenBy(r => r.Bis)
-            .ToList();
-        if (sorted.Count == 0) return null;
-
-        DateOnly curVon = sorted[0].Von;
-        DateOnly curBis = sorted[0].Bis;
-        for (int i = 1; i < sorted.Count; i++)
-        {
-            var r = sorted[i];
-            if (r.Von.DayNumber <= curBis.DayNumber + 1)
-            {
-                // nahtlos oder überlappend → Kette verlängern
-                if (r.Bis > curBis) curBis = r.Bis;
-            }
-            else
-            {
-                if (anchorTag >= curVon && anchorTag <= curBis) return curVon;
-                curVon = r.Von;
-                curBis = r.Bis;
-            }
-        }
-        return (anchorTag >= curVon && anchorTag <= curBis) ? curVon : null;
-    }
-
-    /// <summary>
-    /// 2-Monats-Grenze der «Feiertagentschädigung auf Lohnersatz»
-    /// (Walter-Vorgabe 04.08.2026): gezahlt wird nur, solange die
-    /// zusammenhängende Krank-/Unfall-Absenz noch keine 2 vollen Monate
-    /// dauert — Ketten-Beginn + 2 Monate ≤ Periodenende → nicht mehr zahlen.
-    /// (Amtliche Regel: Kürzung des Feiertagsanspruchs um 0.5 Feiertage pro
-    /// vollen Absenz-Monat — hier vereinfacht als harte Grenze.)
-    /// </summary>
-    public static bool IsFeiertagAufLohnersatzErlaubt(DateOnly kettenBeginn, DateOnly periodTo)
-        => kettenBeginn.AddMonths(2) > periodTo;
-
-    /// <summary>
-    /// Karenz/Taggeld-Codes: Feiertag-% nur über «Feiertagentschädigung auf Lohnersatz»,
+    /// Karenz/Taggeld-Codes: Feiertag-% nur über «Feiertagentschädigung auf Karenz»,
     /// nie über die normale Feiertag-Basis (sonst 4 % auf Versicherungstaggeld-Zulagen
     /// 2030/2035 — TF01 Herz Jan +60 Brutto / +5 13. ML).
     /// </summary>

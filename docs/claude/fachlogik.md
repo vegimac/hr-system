@@ -40,7 +40,7 @@
 
 ### Rundungsregel Lohnabrechnung (Walter 09.09.2026, ABSOLUT — Zertifizierungsbedingung)
 - Lohnzeilen (Ferien-/Feiertagentschädigung, 13. Monatslohn, prozentuale Lohnarten) kaufmännisch auf **5 Rappen** (`Round05`, AwayFromZero). Beleg Swissdec TF01: 8'986.40 × 8.33 % = 748.567 → 748.55.
-- Zeilen aus **Anzahl × Satz** (Stundenlohn, Krank-/Unfall-Taggeld, Nacht-/Zeitsaldo-Auszahlung) **rappengenau** — bewusste Mirus-Abweichung (Mirus rundet auf 5 Rp.: 6.12 → 6.10, 118.59 → 118.60), Walter-Entscheid 04.10.2026. Im Mirus-Vergleich als «Rundung, bewusst» kennzeichnen, nicht fixen.
+- Zeilen aus **Anzahl × Satz** (Stundenlohn, Krank-/Unfall-Taggeld, Nacht-/Zeitsaldo-Auszahlung) **rappengenau** (Taggeld seit 07.11.2026: der Satz pro Tag zuerst auf 5 Rp. wie SWICA, dann × Tage rappengenau) — bewusste Mirus-Abweichung (Mirus rundet auf 5 Rp.: 6.12 → 6.10, 118.59 → 118.60), Walter-Entscheid 04.10.2026. Im Mirus-Vergleich als «Rundung, bewusst» kennzeichnen, nicht fixen.
 - **Swissdec-Lohnart nach Lohnform (Walter 02.11.2026):** Stundenlohn FLEX/MTP → Ferien 1160, Feiertag 1161, 13. ML **1201** (BVG-pflichtig!); Lektionenlohn → **1162 / 1163 / 1202**; gemischt (TF02 Paganini) je eine Zeile pro Teil, jeder Teil auf 5 Rp. (`PayrollCalculations.TeileNachLohnform`). Monatslohn FIX/FIX-M → 1200. Fehlt eine Position im Katalog, bleibt die alte Nummer. Vertragsmerkmal «Ferien/Feiertag im Ansatz inbegriffen» → Ferien-/Feiertag-% = 0 (TF15 Degelo, ersetzt Mirus 1006.2).
 - 13. ML FLEX/MTP = Basis × 8.33 % (Swissdec 1201, TF01) — Mirus rechnet 1/12, daraus 5 Rp. Differenz möglich (bewusst).
 - **MTP nach OneCrew-Modell, nicht nach Mirus (Walter-Entscheid 04.10.2026: «alles so rechnen, wie wir es rechnen würden, vor allem beim MTP — hier macht Mirus Mist»).** Im Mirus-Vergleich bewusst und NICHT zu fixen: Festlohn pro rata nach Kalendertagen (Mirus 52/12), Ferien-/Feiertags-Entschädigung und 13. ML auf allem (Mirus nur auf Plusstunden), Ferien aus dem Pott ohne Vorbezug mit Soll-Kürzung (Mirus «Festlohn für bezogene Ferien» mit negativem Ferien-Saldo). Gilt auch für das Nachrechnen ab 01.01.2026 aus den Mirus-Saldi 31.12.2025.
@@ -50,6 +50,12 @@
 - **QST auf 5 Rappen** (`Round05`, AwayFromZero — Walter 20.09.2026, Swissdec Anhang 1). Jahresmodell: kumulierte Steuer **je Tarifcode-Topf** runden, Monatsabzug = Σ Töpfe − bereits bezahlt (nicht extra runden). Monatsmodell und Pauschale (VR/Mitarbeiterbeteiligung): Monatsbetrag Round05; Mindeststeuer unverändert. Korrektur-Posten: alt/neu je 5 Rp., Differenz daraus. Gilt Schaub und Muster AG; Umstellung am Monatsanfang, bereits bestätigte Belege neu rechnen.
 - Nettolohn und Auszahlungsbetrag wieder auf 5 Rappen (`Round05` in PayrollCalculationService).
 - Gilt produktiv genauso wie im Testmandanten.
+
+### Karenz / Taggeld nach L-GAV (Walter 07.11.2026, Empfehlung D. Sägesser, Rechtsdienst L-GAV)
+- Tagessatz 100 % = **Bruttolohn pro Kalendertag inkl. Ferien, Feiertag und 13. ML** (Stundenlohn: (Grundlohn + Ferien + Feiertag) × (1 + 13. ML) × Std. × 52 ÷ 365). Ersetzt «Tagessatz ohne Feiertag» (04.08.2026) und die 2-Monats-Regel der «Feiertagentschädigung auf Lohnersatz».
+- **Taggeld 80 %** = reine Versicherungsleistung (SWICA: versicherter Lohn × 80 % ÷ 365, pro Tag auf 5 Rp.) → **eine Zeile, keine Zuschläge**, keine AHV/ALV/UVG. Feiertag steckt schon drin — nie nochmals dazurechnen.
+- **Karenz 88 %** (FLEX/MTP) = Lohn → Rechenweg sichtbar: Grundlohn-Anteil × 88 %, darauf Ferien, «Feiertagentschädigung auf Karenz», 13. ML auf das Zwischentotal. Total = 88 % des Tagessatzes. Regel B / manuell: Grundlohn-Anteil = Tagessatz ÷ Aufschlag (sonst Zuschläge doppelt, wie vermutlich Mirus). FIX/FIX-M unverändert.
+- 88 % / 80 % nur über `PayrollCalculations.KarenzAnteil` / `TaggeldAnteil`. Details `docs/lohn-formeln.md` Abschnitt 6.
 
 ### Zeitstempel (Npgsql-Kind) — zentral gelöst (Walter 09.09.2026, nach drei HTTP-500)
 - `AppDbContext.NormalisiereZeitstempel()` läuft vor jedem `SaveChanges`/`SaveChangesAsync` und richtet jede DateTime-Eigenschaft nach dem Spaltentyp des Modells: «timestamp without time zone» → lokale Zeit/Kind Unspecified, sonst (timestamptz) → Utc. `DateTime.Now` und `DateTime.UtcNow` sind damit überall erlaubt; der Fehler «Cannot write DateTime with Kind=UTC …» kann über EF nicht mehr entstehen.

@@ -14,27 +14,24 @@ namespace HrSystem.Services;
 ///     • FIX / FIX-M : MonthlySalary × 12 / 365
 ///     • UTP         : max_part_time_hours × StdLohn_brutto × 52 / 365
 ///     • MTP         : GuaranteedHoursPerWeek × StdLohn_brutto × 52 / 365
-///     StdLohn_brutto = HourlyRate × (1 + Ferien%) × (1 + 8.33%)
-///     (OHNE Feiertag% — Feiertagsentschädigung ist AHV-pflichtiger Lohn und
-///     läuft während Krankheit als separate Lohnzeile, nicht im Taggeld;
-///     Walter 04.08.2026)
+///     StdLohn_brutto = HourlyRate × (1 + Ferien% + Feiertag%) × (1 + 13. ML%)
+///     (L-GAV-Reihenfolge, Walter 07.11.2026 / D. Sägesser: 20.40 → 23.04 → 24.95)
 ///
 ///   <b>Regel B</b> – Vertragsdauer ≥ 4 abgeschlossene Perioden:
 ///     • FIX / FIX-M / UTP : Σ SvBasisAhv der letzten max. 12 Monate / n × 12 / 365
 ///     • MTP               : Garantie-Anteil wie Regel A
-///                         + Ø (SvBasisAhv − Garantie-Basis) der letzten Perioden × 12 / 365
+///                         + Ø «MTP + Stunden» × Brutto-Aufschlag × 12 / 365
 ///
-///   Faktoren:
-///     • 88 % – Tagessatz während Karenzfrist
-///     • 80 % – Tagessatz nach Karenz (auch Meldebetrag an Versicherung)
+///   Tagessatz 100 % = Bruttolohn pro Kalendertag (wie der versicherte AHV-Lohn).
+///     • 80 % – Taggeld der Versicherung, pro Tag auf 5 Rappen, keine Zuschläge
+///     • 88 % – Karenz: Grundlohn-Anteil × 88 %, Ferien/Feiertag/13. ML einzeln
+///              (Total = 88 % des Tagessatzes, nur mit sichtbarem Rechenweg)
 ///
 ///   Vertragswechsel (neues Employment mit neuem ContractStartDate) setzt
 ///   die 4-Monats-Frist zurück.
 /// </summary>
 public class KtgTagessatzService
 {
-    private const decimal ZehnterMonatslohnPct = 8.33m; // 1/12 als % hart kodiert
-
     private readonly AppDbContext _db;
     private readonly ILogger<KtgTagessatzService> _logger;
 
@@ -82,35 +79,53 @@ public class KtgTagessatzService
         decimal? manuell           = emp?.KtgTagessatzManuell;
         bool     karenzAbgeschlossen = emp?.KtgKarenzAbgeschlossen ?? false;
 
+        var company = employment.CompanyProfile
+                    ?? await _db.CompanyProfiles.FirstOrDefaultAsync(c => c.Id == companyProfileId);
+        string modell = (employment.EmploymentModel ?? "").ToUpperInvariant();
+        bool festlohn = modell is "FIX" or "FIX-M";
+
+        // Zuschläge wie in der Lohnberechnung (PayrollCalculationEngine): Filial-%,
+        // Ferien altersabhängig zum Stichtag, 13. ML nur mit Häkchen am Vertrag,
+        // «Ferien/Feiertag im Ansatz» → 0 %. Gleiche Sätze ⇒ die Karenz-Zeilen
+        // (Grundlohn-Anteil + Zuschläge) ergeben wieder 88 % des Tagessatzes.
+        var stichtagDatum = stichtag ?? DateOnly.FromDateTime(DateTime.Today);
+        decimal ferienPct   = company is null ? 0m : ResolveFerienPct(emp, company, stichtagDatum);
+        decimal feiertagPct = company?.DefaultHolidayPercent ?? 0m;
+        decimal ml13Pct     = employment.ThirteenthSalary ? (company?.DefaultThirteenthSalaryPercent ?? 0m) : 0m;
+        if (employment.FerienFeiertagImAnsatz && !festlohn) { ferienPct = 0m; feiertagPct = 0m; }
+        decimal aufschlag = PayrollCalculations.BruttoAufschlag(ferienPct, feiertagPct, ml13Pct);
+
         // Wenn manueller Tagessatz gesetzt: NICHT mehr auto-rechnen,
-        // sondern direkt zurückgeben (88/80 daraus ableiten).
+        // sondern direkt zurückgeben (88/80 daraus ableiten). Der Satz ist ein
+        // Bruttolohn (Mirus: AHV-Durchschnitt) — Grundlohn-Anteil = Satz ÷ Aufschlag.
         if (manuell.HasValue && manuell.Value > 0)
         {
             var vertragsStartM = DateOnly.FromDateTime(employment.ContractStartDate);
             var s100 = Math.Round(manuell.Value, 2);
-            var companyM = employment.CompanyProfile
-                        ?? await _db.CompanyProfiles.FirstOrDefaultAsync(c => c.Id == companyProfileId);
+            var bdM = new KtgBreakdown {
+                Hinweis = "Manueller Tagessatz — übersteuert die Auto-Berechnung (z.B. aus altem Lohnsystem übernommen).",
+                WochenStunden = ResolveWochenStunden(employment, company),
+            };
+            decimal grundM = festlohn ? s100 : s100 / aufschlag;
+            if (!festlohn) FuelleKarenzAufteilung(bdM, grundM, ferienPct, feiertagPct, ml13Pct,
+                Math.Round(s100 * PayrollCalculations.KarenzAnteil, 2));
             return new KtgTagessatzResult(
                 Regel:          "MANUELL",
-                VertragsModell: (employment.EmploymentModel ?? "").ToUpperInvariant(),
+                VertragsModell: modell,
                 AnzahlPerioden: 0,
                 VertragsStart:  vertragsStartM,
                 Tagessatz100:   s100,
-                Tagessatz88:    karenzAbgeschlossen ? 0m : Math.Round(s100 * 0.88m, 2),
-                Tagessatz80:    Math.Round(s100 * 0.80m, 2),
+                Tagessatz88:    karenzAbgeschlossen ? 0m : Math.Round(s100 * PayrollCalculations.KarenzAnteil, 2),
+                Tagessatz80:    PayrollCalculations.TaggeldProTag(s100),
                 KarenzAbgeschlossen: karenzAbgeschlossen,
-                Breakdown:      new KtgBreakdown {
-                    Hinweis = "Manueller Tagessatz — übersteuert die Auto-Berechnung (z.B. aus altem Lohnsystem übernommen).",
-                    WochenStunden = ResolveWochenStunden(employment, companyM),
-                },
+                Breakdown:      bdM,
                 EnthaeltFeiertag: true,
                 EnthaeltFerien:   true,
-                Enthaelt13ml:     true
+                Enthaelt13ml:     true,
+                KarenzGrundTagessatz: grundM
             );
         }
 
-        var company = employment.CompanyProfile
-                    ?? await _db.CompanyProfiles.FirstOrDefaultAsync(c => c.Id == companyProfileId);
         if (company is null) return null;
 
         var vertragsStart = DateOnly.FromDateTime(employment.ContractStartDate);
@@ -128,28 +143,21 @@ public class KtgTagessatzService
 
         int anzahlPerioden = snapshots.Count;
         string regel = anzahlPerioden >= 4 ? "B" : "A";
-        string modell = (employment.EmploymentModel ?? "").ToUpperInvariant();
 
-        // Ferien-Prozent bestimmen
-        // Walter-Vorgabe 06.06.2026 (Stufe 1b): nur noch Filial-Default
-        decimal ferienPct    = ResolveFerienPct(emp, company);
-
-        // Brutto-Stundenlohn (inkl. Ferien/13. ML — OHNE Feiertag).
-        // Walter-Vorgabe 04.08.2026: Die Feiertagsentschädigung ist
-        // AHV-pflichtiger LOHN — sie läuft während Krankheit/Unfall als
-        // separate Lohnzeile («Feiertagentschädigung auf Lohnersatz» in der
-        // PayrollCalculationEngine) und darf darum nicht im (SV-freien)
-        // Versicherungs-Taggeld stecken. Gilt für FLEX und MTP (FIX/FIX-M
-        // rechnen ohnehin über Monatslohn bzw. AHV-Durchschnitt).
+        // Brutto-Stundenlohn nach L-GAV (Walter 07.11.2026, D. Sägesser):
+        // (Grundlohn + Ferien + Feiertag) × (1 + 13. ML). Der Tagessatz ist der
+        // volle Bruttolohn pro Kalendertag — wie der AHV-Lohn, den die Versicherung
+        // versichert. Das Taggeld (80 %) bekommt darum keine Zuschläge mehr; die
+        // Karenz (88 %) rechnet auf dem Grundlohn-Anteil und weist Ferien, Feiertag
+        // und 13. ML einzeln aus. Ersetzt «Tagessatz ohne Feiertag» vom 04.08.2026.
         decimal stdLohnBasis  = employment.HourlyRate ?? 0m;
-        decimal stdLohnBrutto = stdLohnBasis
-                              * (1 + ferienPct    / 100m)
-                              * (1 + ZehnterMonatslohnPct / 100m);
+        decimal stdLohnBrutto = stdLohnBasis * aufschlag;
 
         decimal tagessatz100;
         var breakdown = new KtgBreakdown {
             FerienPct     = ferienPct,
-            ZehnterMLPct  = ZehnterMonatslohnPct,
+            FeiertagPct   = festlohn ? null : feiertagPct,
+            ZehnterMLPct  = ml13Pct,
         };
 
         // Monatsliste immer mitliefern (bei Regel A als Info, bei Regel B als Berechnungsgrundlage)
@@ -162,16 +170,19 @@ public class KtgTagessatzService
                 Math.Round(s.SvBasisAhv, 2)))
             .ToList();
 
+        decimal grundTagessatz;
         if (regel == "A")
         {
-            tagessatz100 = CalculateRegelA(employment, company, stdLohnBrutto, modell, breakdown);
+            (tagessatz100, grundTagessatz) = CalculateRegelA(employment, company, stdLohnBrutto, modell, breakdown);
         }
         else
         {
-            tagessatz100 = CalculateRegelB(employment, company, stdLohnBrutto, modell, snapshots, breakdown);
+            (tagessatz100, grundTagessatz) = CalculateRegelB(employment, company, stdLohnBrutto, aufschlag, modell, snapshots, breakdown);
         }
 
         tagessatz100 = Math.Round(tagessatz100, 2);
+        if (!festlohn) FuelleKarenzAufteilung(breakdown, grundTagessatz, ferienPct, feiertagPct, ml13Pct,
+            Math.Round(tagessatz100 * PayrollCalculations.KarenzAnteil, 2));
 
         return new KtgTagessatzResult(
             Regel:          regel,
@@ -182,25 +193,47 @@ public class KtgTagessatzService
             // Bei "Karenz bereits abgeschlossen" wird der 88%-Schritt
             // nicht mehr ausgewiesen — die Versicherung startet direkt
             // mit dem Meldebetrag (80%).
-            Tagessatz88:    karenzAbgeschlossen ? 0m : Math.Round(tagessatz100 * 0.88m, 2),
-            Tagessatz80:    Math.Round(tagessatz100 * 0.80m, 2),
+            Tagessatz88:    karenzAbgeschlossen ? 0m : Math.Round(tagessatz100 * PayrollCalculations.KarenzAnteil, 2),
+            Tagessatz80:    PayrollCalculations.TaggeldProTag(tagessatz100),
             Breakdown:      breakdown,
             KarenzAbgeschlossen: karenzAbgeschlossen,
-            EnthaeltFeiertag: regel == "B" && modell != "MTP",
-            EnthaeltFerien:   modell is not ("FIX" or "FIX-M"),
-            Enthaelt13ml:     modell is not ("FIX" or "FIX-M")
+            // FLEX/MTP: Bruttolohn inkl. aller Zuschläge (Regel A Hochrechnung,
+            // Regel B AHV-Durchschnitt). FIX/FIX-M: Monatslohn × 12/365 bzw.
+            // AHV-Durchschnitt — unverändert.
+            EnthaeltFeiertag: !festlohn || regel == "B",
+            EnthaeltFerien:   !festlohn,
+            Enthaelt13ml:     !festlohn,
+            KarenzGrundTagessatz: grundTagessatz
         );
+    }
+
+    /// <summary>Karenz-Rechenweg pro Tag fürs Fenster (Grundlohn × 88 % + Zuschläge).
+    /// Der 13. ML nimmt die Rundung auf, damit die vier Teile das angezeigte
+    /// 88-%-Total ergeben (die Lohnabrechnung rundet jede Zeile selbst).</summary>
+    private static void FuelleKarenzAufteilung(KtgBreakdown b, decimal grundTagessatz100,
+        decimal ferienPct, decimal feiertagPct, decimal ml13Pct, decimal tagessatz88)
+    {
+        var k = PayrollCalculations.KarenzAufteilen(grundTagessatz100, ferienPct, feiertagPct, ml13Pct);
+        b.GrundTagessatz    = Math.Round(grundTagessatz100, 2);
+        b.KarenzGrundlohn   = Math.Round(k.Karenz, 2);
+        b.KarenzFerien      = Math.Round(k.Ferien, 2);
+        b.KarenzFeiertag    = Math.Round(k.Feiertag, 2);
+        b.Karenz13ml        = ml13Pct > 0
+            ? tagessatz88 - b.KarenzGrundlohn - b.KarenzFerien - b.KarenzFeiertag
+            : 0m;
     }
 
     // ── Regel A ────────────────────────────────────────────────────────────
 
-    private static decimal CalculateRegelA(
+    /// <returns>(Tagessatz 100 %, Grundlohn-Anteil pro Tag ohne Zuschläge)</returns>
+    private static (decimal Tagessatz100, decimal Grund) CalculateRegelA(
         Employment emp, CompanyProfile company,
         decimal stdLohnBrutto, string modell,
         KtgBreakdown b)
     {
         b.StundenlohnBasis  = emp.HourlyRate;
         b.StundenlohnBrutto = Math.Round(stdLohnBrutto, 4);
+        decimal stdLohnBasis = emp.HourlyRate ?? 0m;
 
         switch (modell)
         {
@@ -210,21 +243,15 @@ public class KtgTagessatzService
                 decimal monatsLohn = emp.MonthlySalary ?? 0m;
                 b.MonatsLohn = monatsLohn;
                 b.WochenStunden = ResolveWochenStunden(emp, company);
-                return monatsLohn * 12m / 365m;
+                decimal satz = monatsLohn * 12m / 365m;
+                return (satz, satz);
             }
 
-            case "MTP":
+            default: // MTP (garantierte Stunden), FLEX/UTP/leer (Filial-Stunden)
             {
                 decimal wo = ResolveWochenStunden(emp, company) ?? 0m;
                 b.WochenStunden = wo;
-                return wo * stdLohnBrutto * 52m / 365m;
-            }
-
-            default: // UTP, FLEX, leer → FLEX-Logik
-            {
-                decimal wo = ResolveWochenStunden(emp, company) ?? 0m;
-                b.WochenStunden = wo;
-                return wo * stdLohnBrutto * 52m / 365m;
+                return (wo * stdLohnBrutto * 52m / 365m, wo * stdLohnBasis * 52m / 365m);
             }
         }
     }
@@ -254,9 +281,10 @@ public class KtgTagessatzService
 
     // ── Regel B ────────────────────────────────────────────────────────────
 
-    private static decimal CalculateRegelB(
+    /// <returns>(Tagessatz 100 %, Grundlohn-Anteil pro Tag ohne Zuschläge)</returns>
+    private static (decimal Tagessatz100, decimal Grund) CalculateRegelB(
         Employment emp, CompanyProfile company,
-        decimal stdLohnBrutto, string modell,
+        decimal stdLohnBrutto, decimal aufschlag, string modell,
         List<PayrollSnapshot> snapshots,
         KtgBreakdown b)
     {
@@ -279,32 +307,30 @@ public class KtgTagessatzService
             b.GarantieTagessatz        = Math.Round(garantieTagessatz, 2);
 
             // Mehrstunden-Anteil: Lohnposition "MTP + Stunden" aus SlipJson jedes Monats
-            // auf Brutto-Niveau (Ferien/13. ML) bringen, dann Ø × 12 / 365.
-            // OHNE Feiertag% — Feiertagsentschädigung ist AHV-pflichtiger Lohn,
-            // nicht Teil des Taggelds (Walter 04.08.2026, siehe oben).
-            decimal bruttoAufschlag = (1 + (b.FerienPct ?? 0m) / 100m)
-                                    * (1 + ZehnterMonatslohnPct / 100m);
-
-            decimal summeMehrBrutto = 0m;
+            // auf Brutto-Niveau bringen (Ferien + Feiertag, 13. ML darauf), dann Ø × 12 / 365.
+            decimal summeMehrGrund = 0m;
             foreach (var s in snapshots)
-            {
-                decimal posBetrag = ExtractLohnPositionBetrag(s.SlipJson, "MTP + Stunden");
-                summeMehrBrutto += posBetrag * bruttoAufschlag;
-            }
-            decimal mehrstundenMonatAvg  = n > 0 ? summeMehrBrutto / n : 0m;
+                summeMehrGrund += ExtractLohnPositionBetrag(s.SlipJson, "MTP + Stunden");
+            decimal mehrGrundMonatAvg    = n > 0 ? summeMehrGrund / n : 0m;
+            decimal mehrstundenMonatAvg  = mehrGrundMonatAvg * aufschlag;
             b.MehrstundenAnteilMonat     = Math.Round(mehrstundenMonatAvg, 2);
 
             decimal mehrstundenTagessatz = mehrstundenMonatAvg * 12m / 365m;
             b.MehrstundenTagessatz       = Math.Round(mehrstundenTagessatz, 2);
 
-            return garantieTagessatz + mehrstundenTagessatz;
+            decimal grund = wo * (emp.HourlyRate ?? 0m) * 52m / 365m + mehrGrundMonatAvg * 12m / 365m;
+            return (garantieTagessatz + mehrstundenTagessatz, grund);
         }
         else
         {
-            // FIX / FIX-M / UTP: reiner AHV-Brutto-Durchschnitt
+            // FIX / FIX-M / UTP: reiner AHV-Brutto-Durchschnitt. Er enthält Ferien,
+            // Feiertag und 13. ML schon — für die Karenz (FLEX) wird der
+            // Grundlohn-Anteil herausgerechnet, sonst kämen die Zuschläge doppelt.
             b.WochenStunden = ResolveWochenStunden(emp, company);
             decimal avg = n > 0 ? summeAhv / n : 0m;
-            return avg * 12m / 365m;
+            decimal satz = avg * 12m / 365m;
+            bool festlohn = modell is "FIX" or "FIX-M";
+            return (satz, festlohn || aufschlag <= 0 ? satz : satz / aufschlag);
         }
     }
 
@@ -346,16 +372,18 @@ public class KtgTagessatzService
     /// Ab company.VacationSixWeeksFromAge greift der 6-Wochen-Satz (Default 50).
     /// Walter-Vorgabe 06.06.2026: konsistent zur Engine, kein Vertrags-Override mehr.
     /// </summary>
-    private static decimal ResolveFerienPct(Employee? employee, CompanyProfile company)
+    private static decimal ResolveFerienPct(Employee? employee, CompanyProfile company, DateOnly stichtag)
     {
+        decimal pct = company.DefaultVacationPercent5Weeks ?? 10.65m;
         if (employee?.DateOfBirth != null)
         {
+            // Wie die Engine: 6-Wochen-Satz, sobald der Geburtstag bis zum
+            // Stichtag (Periodenende) erreicht ist — nie herunter.
             var dob = DateOnly.FromDateTime(employee.DateOfBirth.Value);
-            var heute = DateOnly.FromDateTime(DateTime.Today);
-            if (dob.AddYears(company.VacationSixWeeksFromAge) <= heute)
-                return company.DefaultVacationPercent6Weeks ?? 13.04m;
+            if (dob.AddYears(company.VacationSixWeeksFromAge) <= stichtag)
+                pct = Math.Max(pct, company.DefaultVacationPercent6Weeks ?? 13.04m);
         }
-        return company.DefaultVacationPercent5Weeks ?? 10.65m;
+        return pct;
     }
 
     private static string MonthName(int month) => month switch
@@ -379,15 +407,18 @@ public record KtgTagessatzResult(
     decimal      Tagessatz80,
     KtgBreakdown Breakdown,
     bool         KarenzAbgeschlossen = false,
-    /// <summary>Tagessatz enthält die Feiertagentschädigung schon (AHV-Durchschnitt
-    /// FLEX Regel B, manueller Satz aus Mirus) → keine «Feiertagentschädigung auf
-    /// Lohnersatz» mehr obendrauf (Walter 04.10.2026).</summary>
+    /// <summary>Tagessatz 100 % enthält die Feiertagentschädigung schon. FLEX/MTP
+    /// immer (Bruttolohn nach L-GAV, Walter 07.11.2026); FIX/FIX-M nur Regel B.</summary>
     bool         EnthaeltFeiertag = false,
-    /// <summary>Tagessatz enthält Ferien% bzw. 13. ML schon (FLEX/MTP: Stundenlohn
-    /// × Ferien × 13. ML; manuell: AHV-Durchschnitt). Dann wirken die Häkchen
-    /// Ferien/13. ML der Lohnersatz-Positionen nicht nochmals (Walter 04.10.2026).</summary>
+    /// <summary>Tagessatz 100 % enthält Ferien% bzw. 13. ML schon (FLEX/MTP und
+    /// manuell ja, FIX/FIX-M nein). Das Taggeld bekommt dann keine Zuschläge.</summary>
     bool         EnthaeltFerien = false,
-    bool         Enthaelt13ml = false
+    bool         Enthaelt13ml = false,
+    /// <summary>Grundlohn-Anteil pro Kalendertag (100 %, ohne Ferien/Feiertag/13. ML).
+    /// Basis der Karenz FLEX/MTP: Karenz = Grundlohn-Anteil × 88 %, darauf Ferien,
+    /// Feiertag und 13. ML einzeln (L-GAV, D. Sägesser, Walter 07.11.2026).
+    /// Ungerundet. FIX/FIX-M = Tagessatz100.</summary>
+    decimal      KarenzGrundTagessatz = 0m
 );
 
 public class KtgBreakdown
@@ -397,12 +428,17 @@ public class KtgBreakdown
 
     // Allgemein
     public decimal? FerienPct      { get; set; }
-    /// <summary>Seit 04.08.2026 nicht mehr befüllt (bleibt null) — die
-    /// Feiertag-Komponente steckt nicht mehr im Taggeld-Tagessatz
-    /// (Feiertagsentschädigung = AHV-pflichtiger Lohn, separate Lohnzeile).
-    /// Property bleibt für JSON-Kompatibilität erhalten.</summary>
+    /// <summary>Feiertag-% im Brutto-Stundenlohn (FLEX/MTP, seit 07.11.2026 wieder
+    /// enthalten — L-GAV). FIX/FIX-M: null.</summary>
     public decimal? FeiertagPct    { get; set; }
     public decimal? ZehnterMLPct   { get; set; }
+
+    // Karenz-Rechenweg pro Tag (FLEX/MTP): Grundlohn × 88 %, Ferien, Feiertag, 13. ML
+    public decimal? GrundTagessatz   { get; set; }
+    public decimal? KarenzGrundlohn  { get; set; }
+    public decimal? KarenzFerien     { get; set; }
+    public decimal? KarenzFeiertag   { get; set; }
+    public decimal? Karenz13ml       { get; set; }
 
     // Regel A (Hochrechnung)
     public decimal? StundenlohnBasis  { get; set; }
