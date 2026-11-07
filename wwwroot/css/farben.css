@@ -28,6 +28,11 @@
     --oc-warn: #d97706;  --oc-warn-bg: rgba(217, 119, 6, 0.12);  --oc-warn-text: #92400e;
     --oc-rot:  #dc2626;  --oc-rot-bg:  rgba(220, 38, 38, 0.10);  --oc-rot-text:  #991b1b;
     --oc-swissdec-rot: #D2294B;
+    /* Lohn-Anteile (Tagessatz-Rechenweg, Walter 07.11.2026) */
+    --oc-anteil-grund:    #1d4ed8;   /* Grundlohn — blau */
+    --oc-anteil-ferien:   #15803d;   /* Ferien — grün */
+    --oc-anteil-feiertag: #92400e;   /* Feiertag — braun */
+    --oc-anteil-13:       #ea580c;   /* 13. ML — orange */
 }
 body.theme-dark {
     --oc-seite:        transparent;                  /* der Grund kommt von body (--dlg-bg) */
@@ -53,4 +58,8 @@ body.theme-dark {
     --oc-warn: #f59e0b;  --oc-warn-bg: rgba(245, 158, 11, 0.18); --oc-warn-text: #fcd34d;
     --oc-rot:  #ef4444;  --oc-rot-bg:  rgba(239, 68, 68, 0.18);  --oc-rot-text:  #fca5a5;
     --oc-swissdec-rot: #E8466A;
+    --oc-anteil-grund:    #93c5fd;
+    --oc-anteil-ferien:   #86efac;
+    --oc-anteil-feiertag: #e0b48a;
+    --oc-anteil-13:       #fdba74;
 }

@@ -56,15 +56,6 @@ function _ktgBreakdownHtml(d) {
                     <div><b>Monatslohn:</b> CHF ${fmt(bd.monatsLohn)}</div>
                     <div style="margin-top:4px;color:#64748b">Formel: Monatslohn × 12 ÷ 365 = Tagessatz 100 %</div>
                 </div>`;
-        } else {
-            breakdownHtml = `
-                <div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155;line-height:1.7">
-                    <div><b>Stundenlohn (Basis):</b> CHF ${fmt(bd.stundenlohnBasis, 2)}</div>
-                    <div>+ Ferien ${fmt(bd.ferienPct, 2)} % + Feiertag ${fmt(bd.feiertagPct, 2)} %, darauf + 13. ML ${fmt(bd.zehnterMLPct, 2)} %</div>
-                    <div><b>= Brutto-Stundenlohn:</b> CHF ${fmt(bd.stundenlohnBrutto, 4)}</div>
-                    <div style="margin-top:6px"><b>Wochenstunden:</b> ${fmt(bd.wochenStunden, 2)} h (${d.vertragsModell === 'MTP' ? 'garantiert' : 'FLEX aus Filiale'})</div>
-                    <div style="margin-top:4px;color:#64748b">Formel: Wochenstunden × Std-Lohn brutto × 52 ÷ 365 = Tagessatz 100 %</div>
-                </div>`;
         }
         breakdownHtml += renderMonate(
             `ℹ️ Bisherige Lohnperioden <span style="font-weight:400;color:#64748b">(zur Information — flie\u00dft bei Regel A nicht in die Berechnung ein)</span>`,
@@ -89,41 +80,43 @@ function _ktgBreakdownHtml(d) {
                 Formel: Ø × 12 ÷ 365 = Tagessatz 100 %${d.vertragsModell === 'MTP' ? ' (Garantie- und Mehrstunden-Anteil summiert)' : ''}
             </div>`;
     }
-    breakdownHtml += _ktgKarenzWegHtml(d);
-    return breakdownHtml;
+    return _ktgKarenzWegHtml(d) + breakdownHtml;
 }
 
-/** Rechenweg Karenz und Taggeld nach L-GAV (Walter 07.11.2026, D. Sägesser):
- *  Karenz = Grundlohn × 88 %, Ferien/Feiertag/13. ML einzeln (wie auf der
- *  Lohnabrechnung); Taggeld = Tagessatz × 80 %, pro Tag auf 5 Rp., ohne Zuschläge. */
+/** Rechenweg kompakt (Walter 07.11.2026): Farbe = Lohn-Anteil (blau Grundlohn,
+ *  grün Ferien, braun Feiertag, orange 13. ML). Stunde → Tagessatz 100 %;
+ *  Karenz 88 % = Grundlohn × 88 % + Zuschläge (L-GAV, D. Sägesser);
+ *  Taggeld 80 % = Tagessatz × 80 %, pro Tag auf 5 Rp., ohne Zuschläge. */
 function _ktgKarenzWegHtml(d) {
     const bd = d.breakdown || {};
-    if (bd.karenzGrundlohn == null || d.karenzAbgeschlossen) return '';
+    if (bd.karenzGrundlohn == null) return '';
     const fmt = _ktgFmtChf;
-    // Wie kommt der Grundlohn pro Tag zustande (ganz knapp):
-    // Regel A = Stunden × Stundenlohn × 52 ÷ 365; Regel B MTP = Garantie + Ø Mehrstunden;
-    // sonst (Regel B FLEX, manuell) aus dem Tagessatz herausgerechnet.
-    let grundWeg;
-    if (d.regel === 'A' && bd.wochenStunden != null && bd.stundenlohnBasis != null) {
-        grundWeg = `${fmt(bd.wochenStunden, 2)} h × CHF ${fmt(bd.stundenlohnBasis)} × 52 ÷ 365`;
+    const fPct = Number(bd.ferienPct || 0), tPct = Number(bd.feiertagPct || 0), mPct = Number(bd.zehnterMLPct || 0);
+    const a = (cls, v) => `<span class="ktg-ant ktg-ant-${cls}">${fmt(v)}</span>`;
+    const legende = `<div class="ktg-weg-legende">
+            <span class="ktg-ant-g">● Grundlohn</span>
+            <span class="ktg-ant-f" title="${fmt(fPct, 2)} %">● Ferien</span>
+            <span class="ktg-ant-t" title="${fmt(tPct, 2)} %">● Feiertag</span>
+            <span class="ktg-ant-m" title="${fmt(mPct, 2)} %">● 13. ML</span>
+        </div>`;
+    let basis;
+    if (d.regel === 'A' && bd.stundenlohnBasis != null && bd.wochenStunden != null) {
+        const s = Number(bd.stundenlohnBasis), sf = s * fPct / 100, st = s * tPct / 100, sm = (s + sf + st) * mPct / 100;
+        basis = `<div><b>Std.</b> ${a('g', s)} + ${a('f', sf)} + ${a('t', st)} + ${a('m', sm)} = ${fmt(bd.stundenlohnBrutto)} × ${fmt(bd.wochenStunden, 0)} h</div>`;
     } else if (d.regel === 'B' && d.vertragsModell === 'MTP') {
-        grundWeg = 'Garantie + Ø Mehrstunden, ohne Zuschläge';
+        basis = `<div><b>Grund</b> Garantie + Ø Mehrstunden = ${a('g', bd.grundTagessatz)} pro Tag</div>`;
     } else {
-        const aufschlag = (1 + (Number(bd.ferienPct || 0) + Number(bd.feiertagPct || 0)) / 100)
-                        * (1 + Number(bd.zehnterMLPct || 0) / 100);
-        grundWeg = `Tagessatz CHF ${fmt(d.tagessatz100)} ÷ ${fmt(aufschlag, 4)}`;
+        const aufschlag = (1 + (fPct + tPct) / 100) * (1 + mPct / 100);
+        basis = `<div><b>Grund</b> ${fmt(d.tagessatz100)} ÷ ${fmt(aufschlag, 4)} = ${a('g', bd.grundTagessatz)} pro Tag</div>`;
     }
-    // Gleiche Box und Schrift wie der Berechnungsblock oben (dark.css mappt diese Werte).
+    const karenz = d.karenzAbgeschlossen ? '' :
+        `<div><b>88 %</b> ${a('g', bd.karenzGrundlohn)} + ${a('f', bd.karenzFerien)} + ${a('t', bd.karenzFeiertag)} + ${a('m', bd.karenz13ml)} = ${fmt(d.tagessatz88)}</div>`;
     return `
-        <div style="margin-top:12px;padding:12px 16px;background:#f8fafc;border-radius:8px;font-size:12px;color:#334155;line-height:1.7">
-            <div style="font-weight:600;margin-bottom:4px">Karenz 88 % pro Tag (Rechenweg L-GAV)</div>
-            <div><b>Grundlohn pro Tag:</b> ${grundWeg} = CHF ${fmt(bd.grundTagessatz)}</div>
-            <div>× 88 % = CHF ${fmt(bd.karenzGrundlohn)}</div>
-            <div>+ Ferien ${fmt(bd.ferienPct, 2)} % = CHF ${fmt(bd.karenzFerien)}</div>
-            <div>+ Feiertag ${fmt(bd.feiertagPct, 2)} % = CHF ${fmt(bd.karenzFeiertag)}</div>
-            <div>+ 13. ML ${fmt(bd.zehnterMLPct, 2)} % auf das Zwischentotal = CHF ${fmt(bd.karenz13ml)}</div>
-            <div><b>= Karenz pro Tag:</b> CHF ${fmt(d.tagessatz88)} (88 % des Tagessatzes)</div>
-            <div style="margin-top:4px;color:#64748b">Taggeld 80 %: Tagessatz × 80 %, pro Tag auf 5 Rappen (wie die Versicherung), eine Zeile ohne Zuschläge.</div>
+        <div class="ktg-weg">
+            ${legende}
+            ${basis}
+            ${karenz}
+            <div><b>80 %</b> ${fmt(d.tagessatz100)} × 80 % = ${fmt(d.tagessatz80)}</div>
         </div>`;
 }
 
